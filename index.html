@@ -1,82 +1,177 @@
 <!DOCTYPE html>
-<html>
+<html lang="de">
 <head>
-<meta charset="utf-8" />
-<title>Urlaubsplaner</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Urlaubsplaner</title>
 
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 
-<style>
-body { margin:0; }
-#map { height:100vh; }
+  <style>
+    body { margin: 0; }
+    #map { height: 100vh; width: 100vw; }
 
-.controls{
-  position:absolute;
-  top:10px;
-  left:10px;
-  z-index:1000;
-  background:white;
-  padding:10px;
-  border-radius:10px;
-}
+    .controls{
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      z-index: 1000;
+      background: white;
+      padding: 10px;
+      border-radius: 12px;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.15);
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      width: 190px;
+    }
 
-button{
-  display:block;
-  margin:5px 0;
-  width:160px;
-  padding:8px;
-  font-size:14px;
-}
-</style>
+    .controls h3{
+      margin: 0 0 8px 0;
+      font-size: 16px;
+    }
+
+    .controls button{
+      display: block;
+      width: 100%;
+      padding: 10px;
+      margin: 6px 0;
+      border: 0;
+      border-radius: 10px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    .primary { background: #1f6feb; color: white; }
+    .secondary { background: #f0f2f5; color: #111; }
+    .danger { background: #d1242f; color: white; }
+
+    .mode{
+      margin-top: 8px;
+      padding: 8px;
+      border-radius: 10px;
+      background: #f6f8fa;
+      font-size: 13px;
+      line-height: 1.3;
+    }
+
+    .status{
+      position: absolute;
+      left: 10px;
+      bottom: 10px;
+      z-index: 1000;
+      background: rgba(255,255,255,0.95);
+      padding: 8px 10px;
+      border-radius: 12px;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      font-size: 13px;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.12);
+      max-width: calc(100vw - 20px);
+    }
+  </style>
 </head>
 
 <body>
+  <div class="controls">
+    <h3>Urlaubsplaner</h3>
 
-<div class="controls">
-  <button onclick="setMode('start')">Startpunkt</button>
-  <button onclick="setMode('stop')">Zwischenstopp</button>
-  <button onclick="setMode('ziel')">Ziel</button>
-</div>
+    <button class="primary" onclick="setMode('start')">📍 Startpunkt setzen</button>
+    <button class="secondary" onclick="setMode('stop')">🟡 Zwischenstopp setzen</button>
+    <button class="primary" onclick="setMode('ziel')">🏁 Ziel setzen</button>
 
-<div id="map"></div>
+    <button class="secondary" onclick="clearStops()">🧹 Zwischenstopps löschen</button>
+    <button class="danger" onclick="clearAll()">🗑️ Alles löschen</button>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <div class="mode" id="modeBox">
+      Modus: <b>Startpunkt</b><br>
+      Tipp: Button drücken → dann auf Karte tippen
+    </div>
+  </div>
 
-<script>
-var map = L.map('map').setView([51.505, 10], 6);
+  <div id="map"></div>
 
-L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  maxZoom: 19
-}).addTo(map);
+  <div class="status" id="statusBox">
+    Tippe auf die Karte, um einen Punkt zu setzen.
+  </div>
 
-let mode = "start";
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-function setMode(m){
-  mode = m;
-}
+  <script>
+    // Karte starten (Deutschland-Zoom)
+    const map = L.map('map').setView([51.0, 10.0], 6);
 
-map.on('click', function(e){
+    // OpenStreetMap Tiles
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap'
+    }).addTo(map);
 
-  if(mode === "start"){
-    L.marker(e.latlng).addTo(map)
-      .bindPopup("Startpunkt")
-      .openPopup();
-  }
+    // Zustand
+    let mode = "start";
 
-  if(mode === "stop"){
-    L.marker(e.latlng).addTo(map)
-      .bindPopup("Zwischenstopp")
-      .openPopup();
-  }
+    let startMarker = null;
+    let zielMarker = null;
+    let stopMarkers = [];
 
-  if(mode === "ziel"){
-    L.marker(e.latlng).addTo(map)
-      .bindPopup("Ziel")
-      .openPopup();
-  }
+    const modeBox = document.getElementById("modeBox");
+    const statusBox = document.getElementById("statusBox");
 
-});
-</script>
+    function setMode(m){
+      mode = m;
 
+      if(mode === "start"){
+        modeBox.innerHTML = 'Modus: <b>Startpunkt</b><br>Tipp: Jetzt auf die Karte tippen';
+      }
+      if(mode === "stop"){
+        modeBox.innerHTML = 'Modus: <b>Zwischenstopp</b><br>Tipp: Du kannst mehrere Stopps setzen';
+      }
+      if(mode === "ziel"){
+        modeBox.innerHTML = 'Modus: <b>Ziel</b><br>Tipp: Jetzt auf die Karte tippen';
+      }
+    }
+
+    function fmt(latlng){
+      return `${latlng.lat.toFixed(5)}, ${latlng.lng.toFixed(5)}`;
+    }
+
+    function clearStops(){
+      stopMarkers.forEach(m => map.removeLayer(m));
+      stopMarkers = [];
+      statusBox.innerHTML = "Zwischenstopps gelöscht.";
+    }
+
+    function clearAll(){
+      if(startMarker) { map.removeLayer(startMarker); startMarker = null; }
+      if(zielMarker) { map.removeLayer(zielMarker); zielMarker = null; }
+      clearStops();
+      statusBox.innerHTML = "Alles gelöscht.";
+    }
+
+    // Klick auf Karte
+    map.on("click", (e) => {
+      const p = e.latlng;
+
+      if(mode === "start"){
+        // Start überschreiben (nur 1 Start)
+        if(startMarker) map.removeLayer(startMarker);
+
+        startMarker = L.marker(p).addTo(map).bindPopup("Startpunkt").openPopup();
+        statusBox.innerHTML = `✅ Start gesetzt: <b>${fmt(p)}</b>`;
+      }
+
+      if(mode === "stop"){
+        // Stopps können mehrere sein
+        const m = L.marker(p).addTo(map).bindPopup("Zwischenstopp").openPopup();
+        stopMarkers.push(m);
+        statusBox.innerHTML = `🟡 Zwischenstopp #${stopMarkers.length}: <b>${fmt(p)}</b>`;
+      }
+
+      if(mode === "ziel"){
+        // Ziel überschreiben (nur 1 Ziel)
+        if(zielMarker) map.removeLayer(zielMarker);
+
+        zielMarker = L.marker(p).addTo(map).bindPopup("Ziel").openPopup();
+        statusBox.innerHTML = `🏁 Ziel gesetzt: <b>${fmt(p)}</b>`;
+      }
+    });
+  </script>
 </body>
 </html>
