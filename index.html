@@ -1,502 +1,166 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Urlaubsplaner</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Urlaubsplaner</title>
 
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 
-  <style>
-    :root{
-      --bg: rgba(255,255,255,0.92);
-      --border: rgba(0,0,0,0.08);
-      --shadow: 0 16px 40px rgba(0,0,0,0.18);
-      --text: #0b0f14;
-      --sub: rgba(11,15,20,0.65);
-      --blue: #0a84ff;
-      --red: #ff3b30;
-      --chip: rgba(10,132,255,0.12);
-    }
+<style>
+body { margin:0; }
+#map { height:100vh; }
 
-    body{ margin:0; }
-    #map{ height:100vh; }
+.card{
+position:absolute;
+top:14px;
+left:14px;
+z-index:1000;
+width:340px;
+background:rgba(255,255,255,0.95);
+border-radius:18px;
+padding:14px;
+box-shadow:0 16px 40px rgba(0,0,0,0.18);
+font-family:-apple-system;
+}
 
-    .card{
-      position:absolute;
-      top:14px;
-      left:14px;
-      z-index:1000;
-      width:340px;
-      max-width: calc(100vw - 28px);
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 18px;
-      box-shadow: var(--shadow);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display",
-                   system-ui, Segoe UI, Roboto, Arial, sans-serif;
-      overflow:hidden;
-    }
-
-    .header{
-      padding: 14px 14px 10px;
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap: 10px;
-    }
-    .title{
-      font-size: 16px;
-      font-weight: 750;
-      color: var(--text);
-      display:flex;
-      align-items:center;
-      gap: 8px;
-    }
-    .chip{
-      font-size: 12px;
-      font-weight: 700;
-      padding: 4px 10px;
-      border-radius: 999px;
-      background: var(--chip);
-      color: var(--blue);
-      border: 1px solid rgba(10,132,255,0.18);
-      white-space: nowrap;
-    }
-    .content{ padding: 0 14px 14px; }
-
-    label{
-      display:block;
-      margin: 10px 0 6px;
-      font-size: 12px;
-      font-weight: 650;
-      color: var(--sub);
-    }
-
-    .fieldWrap{ position: relative; }
-
-    .field{
-      width:100%;
-      box-sizing:border-box;
-      border: 1px solid rgba(0,0,0,0.10);
-      background: rgba(255,255,255,0.96);
-      border-radius: 14px;
-      padding: 12px 12px;
-      font-size: 14px;
-      outline:none;
-      color: var(--text);
-    }
-    .field:focus{
-      border-color: rgba(10,132,255,0.45);
-      box-shadow: 0 0 0 4px rgba(10,132,255,0.12);
-    }
-
-    /* Autocomplete dropdown */
-    .ac{
-      position:absolute;
-      left:0; right:0;
-      top: calc(100% + 6px);
-      background: rgba(255,255,255,0.98);
-      border: 1px solid rgba(0,0,0,0.10);
-      border-radius: 14px;
-      box-shadow: 0 14px 40px rgba(0,0,0,0.18);
-      overflow:hidden;
-      display:none;
-      max-height: 240px;
-      overflow-y:auto;
-      z-index: 2000;
-    }
-    .acItem{
-      padding: 10px 12px;
-      font-size: 14px;
-      border-top: 1px solid rgba(0,0,0,0.06);
-      cursor:pointer;
-    }
-    .acItem:first-child{ border-top:0; }
-    .acItem:hover{ background: rgba(10,132,255,0.08); }
-    .acMain{ font-weight: 700; color: var(--text); }
-    .acSub{ font-size: 12px; color: var(--sub); margin-top: 2px; }
-
-    .stopRow{
-      display:flex;
-      gap: 8px;
-      align-items:flex-start;
-      margin-top: 8px;
-    }
-
-    .iconBtn{
-      border: 1px solid rgba(0,0,0,0.10);
-      background: rgba(255,255,255,0.96);
-      border-radius: 14px;
-      padding: 10px 12px;
-      font-weight: 800;
-      cursor:pointer;
-      color: var(--text);
-    }
-    .iconBtn:active{ transform: scale(0.99); }
-
-    .actions{
-      display:flex;
-      gap: 10px;
-      margin-top: 12px;
-    }
-    .btn{
-      flex:1;
-      border:0;
-      border-radius: 16px;
-      padding: 12px 12px;
-      cursor:pointer;
-      font-weight: 800;
-      font-size: 14px;
-    }
-    .primary{ background: var(--blue); color:#fff; }
-    .danger{ background: rgba(255,59,48,0.10); color: var(--red); border: 1px solid rgba(255,59,48,0.22); }
-
-    .divider{
-      height: 1px;
-      background: rgba(0,0,0,0.07);
-      margin: 12px 0 10px;
-    }
-
-    .meta{
-      display:flex;
-      gap: 10px;
-      flex-wrap: wrap;
-      font-size: 13px;
-      color: var(--sub);
-      line-height: 1.4;
-    }
-    .meta strong{ color: var(--text); }
-
-    .hint{
-      margin-top: 10px;
-      font-size: 12.5px;
-      color: var(--sub);
-    }
-
-    @media (max-width: 380px){
-      .card{ width: 320px; }
-    }
-  </style>
+.field{width:100%;padding:12px;border-radius:12px;border:1px solid #ddd;margin-bottom:8px;}
+.btn{padding:10px;border-radius:12px;border:0;font-weight:700;cursor:pointer;margin-top:6px;width:100%;}
+.blue{background:#0a84ff;color:#fff;}
+.gray{background:#eee;}
+.row{display:flex;gap:6px;margin-bottom:6px;}
+.meta{font-size:13px;margin-top:8px;}
+</style>
 </head>
 <body>
 
-  <div class="card">
-    <div class="header">
-      <div class="title">Urlaubsplaner <span class="chip">🚗 Auto</span></div>
-      <button class="iconBtn" onclick="clearAll()" title="Alles löschen">🗑</button>
-    </div>
+<div class="card">
 
-    <div class="content">
-      <label>Start</label>
-      <div class="fieldWrap">
-        <input id="startAddr" class="field" type="text" placeholder="Adresse oder Ort" autocomplete="off" />
-        <div class="ac" id="acStart"></div>
-      </div>
+<div class="row">
+<button class="btn gray" onclick="setMapMode('start')">📍 Start wählen</button>
+<button class="btn gray" onclick="setMapMode('stop')">🟡 Stopp wählen</button>
+<button class="btn gray" onclick="setMapMode('ziel')">🏁 Ziel wählen</button>
+</div>
 
-      <label>Zwischenstopps (optional)</label>
-      <div id="stops"></div>
-      <div style="margin-top:8px;">
-        <button class="iconBtn" onclick="addStop()">＋ Stopp</button>
-      </div>
+<input id="startAddr" class="field" placeholder="Startadresse">
 
-      <label>Ziel</label>
-      <div class="fieldWrap">
-        <input id="endAddr" class="field" type="text" placeholder="Adresse oder Ort" autocomplete="off" />
-        <div class="ac" id="acEnd"></div>
-      </div>
+<div id="stops"></div>
+<button class="btn gray" onclick="addStop()">+ Stopp</button>
 
-      <div class="actions">
-        <button class="btn primary" onclick="buildRoute()">Route berechnen</button>
-        <button class="btn danger" onclick="removeStopsOnly()">Stopps löschen</button>
-      </div>
+<input id="endAddr" class="field" placeholder="Zieladresse">
 
-      <div class="divider"></div>
+<button class="btn blue" onclick="buildRoute()">Route berechnen</button>
 
-      <div class="meta" id="meta">
-        <span><strong>Route:</strong> —</span>
-        <span><strong>Distanz:</strong> —</span>
-        <span><strong>Zeit:</strong> —</span>
-      </div>
+<div class="meta" id="meta"></div>
 
-      <div class="hint" id="hint">
-        Tipp: Tippe ein paar Buchstaben → wähle einen Vorschlag → Route berechnen.
-      </div>
-    </div>
-  </div>
+</div>
 
-  <div id="map"></div>
+<div id="map"></div>
 
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-  <script>
-    // ------- Map -------
-    const map = L.map('map').setView([51.1657, 10.4515], 6);
-    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+<script>
+const map = L.map('map').setView([51.1657,10.4515],6);
 
-    // ------- UI elements -------
-    const stopsDiv = document.getElementById("stops");
-    const meta = document.getElementById("meta");
-    const hint = document.getElementById("hint");
+L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
 
-    // ------- Markers/Route -------
-    let startMarker = null;
-    let endMarker = null;
-    let stopMarkers = [];
-    let routeLine = null;
+let mapMode = null;
 
-    function setMeta(routeText, distText, timeText){
-      meta.innerHTML = `
-        <span><strong>Route:</strong> ${routeText}</span>
-        <span><strong>Distanz:</strong> ${distText}</span>
-        <span><strong>Zeit:</strong> ${timeText}</span>
-      `;
-    }
+function setMapMode(mode){
+mapMode = mode;
+}
 
-    function clearMapLayers(){
-      if(startMarker){ map.removeLayer(startMarker); startMarker = null; }
-      if(endMarker){ map.removeLayer(endMarker); endMarker = null; }
-      stopMarkers.forEach(m => map.removeLayer(m));
-      stopMarkers = [];
-      if(routeLine){ map.removeLayer(routeLine); routeLine = null; }
-    }
+function addStop(){
+const input = document.createElement("input");
+input.className="field";
+input.placeholder="Stopp";
+stops.appendChild(input);
+}
 
-    function removeStopsOnly(){
-      stopsDiv.innerHTML = "";
-      stopMarkers.forEach(m => map.removeLayer(m));
-      stopMarkers = [];
-      setMeta("—", "—", "—");
-      hint.textContent = "Stopps gelöscht.";
-    }
+let startMarker, endMarker, stopMarkers=[];
 
-    function clearAll(){
-      document.getElementById("startAddr").value = "";
-      document.getElementById("endAddr").value = "";
-      stopsDiv.innerHTML = "";
-      clearMapLayers();
-      setMeta("—", "—", "—");
-      hint.textContent = "Alles gelöscht.";
-    }
+map.on("click", async function(e){
 
-    // ------- Stops UI (with autocomplete per stop) -------
-    function addStop(){
-      const row = document.createElement("div");
-      row.className = "stopRow";
+if(!mapMode) return;
 
-      const wrap = document.createElement("div");
-      wrap.className = "fieldWrap";
-      wrap.style.flex = "1";
+const addr = await reverseGeocode(e.latlng.lat,e.latlng.lng);
 
-      const input = document.createElement("input");
-      input.type = "text";
-      input.className = "field";
-      input.placeholder = "Stopp (Adresse oder Ort)";
-      input.autocomplete = "off";
+if(mapMode==="start"){
+document.getElementById("startAddr").value = addr;
+if(startMarker) map.removeLayer(startMarker);
+startMarker=L.marker(e.latlng).addTo(map);
+}
 
-      const ac = document.createElement("div");
-      ac.className = "ac";
+if(mapMode==="ziel"){
+document.getElementById("endAddr").value = addr;
+if(endMarker) map.removeLayer(endMarker);
+endMarker=L.marker(e.latlng).addTo(map);
+}
 
-      wrap.appendChild(input);
-      wrap.appendChild(ac);
+if(mapMode==="stop"){
+addStop();
+const inputs=document.querySelectorAll("#stops input");
+inputs[inputs.length-1].value=addr;
+const m=L.marker(e.latlng).addTo(map);
+stopMarkers.push(m);
+}
 
-      const del = document.createElement("button");
-      del.className = "iconBtn";
-      del.textContent = "✕";
-      del.title = "Stopp löschen";
-      del.onclick = () => row.remove();
+mapMode=null;
 
-      row.appendChild(wrap);
-      row.appendChild(del);
+});
 
-      stopsDiv.appendChild(row);
+async function reverseGeocode(lat,lon){
+const url=`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`;
+const res=await fetch(url);
+const data=await res.json();
+return data.display_name || lat+","+lon;
+}
 
-      setupAutocomplete(input, ac);
-      input.focus();
-    }
+async function geocode(q){
+const url=`https://nominatim.openstreetmap.org/search?format=json&q=${q}`;
+const res=await fetch(url);
+const data=await res.json();
+return {lat:data[0].lat,lon:data[0].lon};
+}
 
-    // ------- Helpers -------
-    function km(m){ return (m/1000).toFixed(1) + " km"; }
-    function hmin(sec){
-      const m = Math.round(sec/60);
-      const h = Math.floor(m/60);
-      const mm = m % 60;
-      return h > 0 ? `${h} h ${mm} min` : `${mm} min`;
-    }
+async function buildRoute(){
 
-    // ------- Nominatim Autocomplete -------
-    // NOTE: Nominatim fair-use: don't spam requests. We debounce and require >= 3 chars.
-    async function suggest(query){
-      const url = `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=6&q=${encodeURIComponent(query)}`;
-      const res = await fetch(url, { headers: { "Accept":"application/json" }});
-      if(!res.ok) return [];
-      const data = await res.json();
-      return Array.isArray(data) ? data : [];
-    }
+if(!startAddr.value || !endAddr.value) return;
 
-    function splitTitle(display){
-      // Keep it readable like Apple Maps: main line + smaller line
-      if(!display) return { main: "", sub: "" };
-      const parts = display.split(",").map(s => s.trim());
-      const main = parts.slice(0, 2).join(", ");
-      const sub  = parts.slice(2).join(", ");
-      return { main, sub };
-    }
+const start=await geocode(startAddr.value);
+const end=await geocode(endAddr.value);
 
-    function showDropdown(acEl, items, onPick){
-      acEl.innerHTML = "";
-      if(items.length === 0){
-        acEl.style.display = "none";
-        return;
-      }
-      items.forEach(item => {
-        const display = item.display_name || "";
-        const t = splitTitle(display);
+let coords=[start];
 
-        const div = document.createElement("div");
-        div.className = "acItem";
-        div.innerHTML = `<div class="acMain">${escapeHtml(t.main)}</div><div class="acSub">${escapeHtml(t.sub)}</div>`;
-        div.onclick = () => onPick(display);
-        acEl.appendChild(div);
-      });
-      acEl.style.display = "block";
-    }
+const stopInputs=document.querySelectorAll("#stops input");
 
-    function hideDropdown(acEl){
-      acEl.style.display = "none";
-      acEl.innerHTML = "";
-    }
+for(const s of stopInputs){
+if(s.value){
+coords.push(await geocode(s.value));
+}
+}
 
-    function escapeHtml(str){
-      return String(str)
-        .replaceAll("&","&amp;")
-        .replaceAll("<","&lt;")
-        .replaceAll(">","&gt;")
-        .replaceAll('"',"&quot;")
-        .replaceAll("'","&#039;");
-    }
+coords.push(end);
 
-    function debounce(fn, ms){
-      let t = null;
-      return (...args) => {
-        clearTimeout(t);
-        t = setTimeout(() => fn(...args), ms);
-      };
-    }
+const c=coords.map(c=>`${c.lon},${c.lat}`).join(";");
 
-    function setupAutocomplete(inputEl, acEl){
-      const run = debounce(async () => {
-        const q = inputEl.value.trim();
-        if(q.length < 3){
-          hideDropdown(acEl);
-          return;
-        }
-        const items = await suggest(q);
-        showDropdown(acEl, items, (picked) => {
-          inputEl.value = picked;
-          hideDropdown(acEl);
-        });
-      }, 280);
+const url=`https://router.project-osrm.org/route/v1/driving/${c}?overview=full&geometries=geojson`;
 
-      inputEl.addEventListener("input", run);
+const res=await fetch(url);
+const data=await res.json();
 
-      inputEl.addEventListener("focus", () => {
-        // trigger suggestions on focus if already text
-        if(inputEl.value.trim().length >= 3) run();
-      });
+const route=data.routes[0];
 
-      inputEl.addEventListener("blur", () => {
-        // delay so click can register
-        setTimeout(() => hideDropdown(acEl), 150);
-      });
-    }
+if(window.routeLine) map.removeLayer(window.routeLine);
 
-    // Setup Start/End autocomplete
-    setupAutocomplete(document.getElementById("startAddr"), document.getElementById("acStart"));
-    setupAutocomplete(document.getElementById("endAddr"), document.getElementById("acEnd"));
+window.routeLine=L.geoJSON(route.geometry,{style:{weight:6}}).addTo(map);
 
-    // ------- Geocode (Nominatim single result) -------
-    async function geocode(query){
-      const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(query)}`;
-      const res = await fetch(url, { headers: { "Accept":"application/json" }});
-      if(!res.ok) throw new Error("Geocoding-Fehler");
-      const data = await res.json();
-      if(!data || !data.length) return null;
-      return { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon), name: data[0].display_name };
-    }
+map.fitBounds(window.routeLine.getBounds());
 
-    // ------- Routing (OSRM) - Auto only -------
-    async function routeOSRM(coords){
-      const coordStr = coords.map(c => `${c.lon},${c.lat}`).join(";");
-      const url = `https://router.project-osrm.org/route/v1/driving/${coordStr}?overview=full&geometries=geojson&steps=false`;
-      const res = await fetch(url, { headers: { "Accept":"application/json" }});
-      if(!res.ok) throw new Error("Routing-Fehler");
-      const data = await res.json();
-      if(!data.routes || !data.routes.length) return null;
-      return data.routes[0];
-    }
+meta.innerHTML=`Distanz: ${(route.distance/1000).toFixed(1)} km<br>Zeit: ${Math.round(route.duration/60)} min`;
 
-    // ------- Build route -------
-    async function buildRoute(){
-      try{
-        hint.textContent = "Suche Adressen…";
-        const startText = document.getElementById("startAddr").value.trim();
-        const endText = document.getElementById("endAddr").value.trim();
+}
+</script>
 
-        if(!startText || !endText){
-          hint.textContent = "Bitte Start UND Ziel eingeben.";
-          return;
-        }
-
-        clearMapLayers();
-        setMeta("Berechnung…", "—", "—");
-
-        const start = await geocode(startText);
-        if(!start){ hint.textContent = "Start nicht gefunden."; setMeta("—","—","—"); return; }
-
-        // Stops
-        const stopInputs = Array.from(stopsDiv.querySelectorAll("input"))
-          .map(i => i.value.trim())
-          .filter(v => v.length > 0);
-
-        const stops = [];
-        for(const s of stopInputs){
-          const g = await geocode(s);
-          if(!g){
-            hint.textContent = `Stopp nicht gefunden: "${s}"`;
-            setMeta("—","—","—");
-            return;
-          }
-          stops.push(g);
-        }
-
-        const end = await geocode(endText);
-        if(!end){ hint.textContent = "Ziel nicht gefunden."; setMeta("—","—","—"); return; }
-
-        hint.textContent = "Berechne Route…";
-
-        const all = [start, ...stops, end];
-        const r = await routeOSRM(all);
-        if(!r){ hint.textContent = "Keine Route gefunden."; setMeta("—","—","—"); return; }
-
-        // Markers
-        startMarker = L.marker([start.lat, start.lon]).addTo(map).bindPopup("Start");
-        endMarker = L.marker([end.lat, end.lon]).addTo(map).bindPopup("Ziel");
-        stopMarkers = stops.map((s, idx) => L.marker([s.lat, s.lon]).addTo(map).bindPopup(`Stopp ${idx+1}`));
-
-        // Route line
-        routeLine = L.geoJSON(r.geometry, { style: { weight: 6, opacity: 0.95 } }).addTo(map);
-        map.fitBounds(routeLine.getBounds().pad(0.15));
-
-        setMeta("Verbunden", km(r.distance), hmin(r.duration));
-        hint.textContent = "Fertig.";
-      } catch(e){
-        console.error(e);
-        hint.textContent = "Fehler. Bitte nochmal probieren (Adresse genauer schreiben).";
-        setMeta("—","—","—");
-      }
-    }
-  </script>
 </body>
 </html>
