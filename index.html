@@ -22,7 +22,6 @@
     body{ margin:0; }
     #map{ height:100vh; }
 
-    /* Apple-Maps-like floating card */
     .card{
       position:absolute;
       top:14px;
@@ -48,7 +47,6 @@
       justify-content:space-between;
       gap: 10px;
     }
-
     .title{
       font-size: 16px;
       font-weight: 750;
@@ -57,7 +55,6 @@
       align-items:center;
       gap: 8px;
     }
-
     .chip{
       font-size: 12px;
       font-weight: 700;
@@ -68,10 +65,7 @@
       border: 1px solid rgba(10,132,255,0.18);
       white-space: nowrap;
     }
-
-    .content{
-      padding: 0 14px 14px;
-    }
+    .content{ padding: 0 14px 14px; }
 
     label{
       display:block;
@@ -80,6 +74,8 @@
       font-weight: 650;
       color: var(--sub);
     }
+
+    .fieldWrap{ position: relative; }
 
     .field{
       width:100%;
@@ -97,10 +93,36 @@
       box-shadow: 0 0 0 4px rgba(10,132,255,0.12);
     }
 
+    /* Autocomplete dropdown */
+    .ac{
+      position:absolute;
+      left:0; right:0;
+      top: calc(100% + 6px);
+      background: rgba(255,255,255,0.98);
+      border: 1px solid rgba(0,0,0,0.10);
+      border-radius: 14px;
+      box-shadow: 0 14px 40px rgba(0,0,0,0.18);
+      overflow:hidden;
+      display:none;
+      max-height: 240px;
+      overflow-y:auto;
+      z-index: 2000;
+    }
+    .acItem{
+      padding: 10px 12px;
+      font-size: 14px;
+      border-top: 1px solid rgba(0,0,0,0.06);
+      cursor:pointer;
+    }
+    .acItem:first-child{ border-top:0; }
+    .acItem:hover{ background: rgba(10,132,255,0.08); }
+    .acMain{ font-weight: 700; color: var(--text); }
+    .acSub{ font-size: 12px; color: var(--sub); margin-top: 2px; }
+
     .stopRow{
       display:flex;
       gap: 8px;
-      align-items:center;
+      align-items:flex-start;
       margin-top: 8px;
     }
 
@@ -120,7 +142,6 @@
       gap: 10px;
       margin-top: 12px;
     }
-
     .btn{
       flex:1;
       border:0;
@@ -147,7 +168,6 @@
       color: var(--sub);
       line-height: 1.4;
     }
-
     .meta strong{ color: var(--text); }
 
     .hint{
@@ -156,7 +176,6 @@
       color: var(--sub);
     }
 
-    /* On small screens: make it slightly narrower */
     @media (max-width: 380px){
       .card{ width: 320px; }
     }
@@ -171,8 +190,11 @@
     </div>
 
     <div class="content">
-      <label>Start (Adresse)</label>
-      <input id="startAddr" class="field" type="text" placeholder="z.B. Marienplatz 1, München" />
+      <label>Start</label>
+      <div class="fieldWrap">
+        <input id="startAddr" class="field" type="text" placeholder="Adresse oder Ort" autocomplete="off" />
+        <div class="ac" id="acStart"></div>
+      </div>
 
       <label>Zwischenstopps (optional)</label>
       <div id="stops"></div>
@@ -180,8 +202,11 @@
         <button class="iconBtn" onclick="addStop()">＋ Stopp</button>
       </div>
 
-      <label>Ziel (Adresse)</label>
-      <input id="endAddr" class="field" type="text" placeholder="z.B. Domplatz 1, Köln" />
+      <label>Ziel</label>
+      <div class="fieldWrap">
+        <input id="endAddr" class="field" type="text" placeholder="Adresse oder Ort" autocomplete="off" />
+        <div class="ac" id="acEnd"></div>
+      </div>
 
       <div class="actions">
         <button class="btn primary" onclick="buildRoute()">Route berechnen</button>
@@ -197,7 +222,7 @@
       </div>
 
       <div class="hint" id="hint">
-        Tipp: Adresse eingeben → <strong>Route berechnen</strong>. Wenn nichts gefunden wird: Stadt/Land dazuschreiben.
+        Tipp: Tippe ein paar Buchstaben → wähle einen Vorschlag → Route berechnen.
       </div>
     </div>
   </div>
@@ -211,37 +236,16 @@
     const map = L.map('map').setView([51.1657, 10.4515], 6);
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
 
-    // ------- State -------
+    // ------- UI elements -------
     const stopsDiv = document.getElementById("stops");
     const meta = document.getElementById("meta");
     const hint = document.getElementById("hint");
 
-    // Markers/Route
+    // ------- Markers/Route -------
     let startMarker = null;
     let endMarker = null;
     let stopMarkers = [];
     let routeLine = null;
-
-    function addStop(){
-      const row = document.createElement("div");
-      row.className = "stopRow";
-
-      const input = document.createElement("input");
-      input.type = "text";
-      input.className = "field";
-      input.placeholder = "z.B. Salzburg, Österreich";
-
-      const del = document.createElement("button");
-      del.className = "iconBtn";
-      del.textContent = "✕";
-      del.title = "Stopp löschen";
-      del.onclick = () => row.remove();
-
-      row.appendChild(input);
-      row.appendChild(del);
-      stopsDiv.appendChild(row);
-      input.focus();
-    }
 
     function setMeta(routeText, distText, timeText){
       meta.innerHTML = `
@@ -263,9 +267,8 @@
       stopsDiv.innerHTML = "";
       stopMarkers.forEach(m => map.removeLayer(m));
       stopMarkers = [];
-      // Route neu berechnen macht Sinn, aber nur wenn Start+Ziel existieren.
       setMeta("—", "—", "—");
-      hint.textContent = "Stopps gelöscht. Du kannst neue Stopps hinzufügen oder direkt Start/Ziel routen.";
+      hint.textContent = "Stopps gelöscht.";
     }
 
     function clearAll(){
@@ -277,6 +280,42 @@
       hint.textContent = "Alles gelöscht.";
     }
 
+    // ------- Stops UI (with autocomplete per stop) -------
+    function addStop(){
+      const row = document.createElement("div");
+      row.className = "stopRow";
+
+      const wrap = document.createElement("div");
+      wrap.className = "fieldWrap";
+      wrap.style.flex = "1";
+
+      const input = document.createElement("input");
+      input.type = "text";
+      input.className = "field";
+      input.placeholder = "Stopp (Adresse oder Ort)";
+      input.autocomplete = "off";
+
+      const ac = document.createElement("div");
+      ac.className = "ac";
+
+      wrap.appendChild(input);
+      wrap.appendChild(ac);
+
+      const del = document.createElement("button");
+      del.className = "iconBtn";
+      del.textContent = "✕";
+      del.title = "Stopp löschen";
+      del.onclick = () => row.remove();
+
+      row.appendChild(wrap);
+      row.appendChild(del);
+
+      stopsDiv.appendChild(row);
+
+      setupAutocomplete(input, ac);
+      input.focus();
+    }
+
     // ------- Helpers -------
     function km(m){ return (m/1000).toFixed(1) + " km"; }
     function hmin(sec){
@@ -286,7 +325,98 @@
       return h > 0 ? `${h} h ${mm} min` : `${mm} min`;
     }
 
-    // ------- Geocode (Nominatim) -------
+    // ------- Nominatim Autocomplete -------
+    // NOTE: Nominatim fair-use: don't spam requests. We debounce and require >= 3 chars.
+    async function suggest(query){
+      const url = `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=6&q=${encodeURIComponent(query)}`;
+      const res = await fetch(url, { headers: { "Accept":"application/json" }});
+      if(!res.ok) return [];
+      const data = await res.json();
+      return Array.isArray(data) ? data : [];
+    }
+
+    function splitTitle(display){
+      // Keep it readable like Apple Maps: main line + smaller line
+      if(!display) return { main: "", sub: "" };
+      const parts = display.split(",").map(s => s.trim());
+      const main = parts.slice(0, 2).join(", ");
+      const sub  = parts.slice(2).join(", ");
+      return { main, sub };
+    }
+
+    function showDropdown(acEl, items, onPick){
+      acEl.innerHTML = "";
+      if(items.length === 0){
+        acEl.style.display = "none";
+        return;
+      }
+      items.forEach(item => {
+        const display = item.display_name || "";
+        const t = splitTitle(display);
+
+        const div = document.createElement("div");
+        div.className = "acItem";
+        div.innerHTML = `<div class="acMain">${escapeHtml(t.main)}</div><div class="acSub">${escapeHtml(t.sub)}</div>`;
+        div.onclick = () => onPick(display);
+        acEl.appendChild(div);
+      });
+      acEl.style.display = "block";
+    }
+
+    function hideDropdown(acEl){
+      acEl.style.display = "none";
+      acEl.innerHTML = "";
+    }
+
+    function escapeHtml(str){
+      return String(str)
+        .replaceAll("&","&amp;")
+        .replaceAll("<","&lt;")
+        .replaceAll(">","&gt;")
+        .replaceAll('"',"&quot;")
+        .replaceAll("'","&#039;");
+    }
+
+    function debounce(fn, ms){
+      let t = null;
+      return (...args) => {
+        clearTimeout(t);
+        t = setTimeout(() => fn(...args), ms);
+      };
+    }
+
+    function setupAutocomplete(inputEl, acEl){
+      const run = debounce(async () => {
+        const q = inputEl.value.trim();
+        if(q.length < 3){
+          hideDropdown(acEl);
+          return;
+        }
+        const items = await suggest(q);
+        showDropdown(acEl, items, (picked) => {
+          inputEl.value = picked;
+          hideDropdown(acEl);
+        });
+      }, 280);
+
+      inputEl.addEventListener("input", run);
+
+      inputEl.addEventListener("focus", () => {
+        // trigger suggestions on focus if already text
+        if(inputEl.value.trim().length >= 3) run();
+      });
+
+      inputEl.addEventListener("blur", () => {
+        // delay so click can register
+        setTimeout(() => hideDropdown(acEl), 150);
+      });
+    }
+
+    // Setup Start/End autocomplete
+    setupAutocomplete(document.getElementById("startAddr"), document.getElementById("acStart"));
+    setupAutocomplete(document.getElementById("endAddr"), document.getElementById("acEnd"));
+
+    // ------- Geocode (Nominatim single result) -------
     async function geocode(query){
       const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(query)}`;
       const res = await fetch(url, { headers: { "Accept":"application/json" }});
@@ -307,11 +437,10 @@
       return data.routes[0];
     }
 
-    // ------- Main -------
+    // ------- Build route -------
     async function buildRoute(){
       try{
         hint.textContent = "Suche Adressen…";
-
         const startText = document.getElementById("startAddr").value.trim();
         const endText = document.getElementById("endAddr").value.trim();
 
@@ -324,8 +453,9 @@
         setMeta("Berechnung…", "—", "—");
 
         const start = await geocode(startText);
-        if(!start){ hint.textContent = "Start-Adresse nicht gefunden."; setMeta("—","—","—"); return; }
+        if(!start){ hint.textContent = "Start nicht gefunden."; setMeta("—","—","—"); return; }
 
+        // Stops
         const stopInputs = Array.from(stopsDiv.querySelectorAll("input"))
           .map(i => i.value.trim())
           .filter(v => v.length > 0);
@@ -334,7 +464,7 @@
         for(const s of stopInputs){
           const g = await geocode(s);
           if(!g){
-            hint.textContent = `Zwischenstopp nicht gefunden: "${s}"`;
+            hint.textContent = `Stopp nicht gefunden: "${s}"`;
             setMeta("—","—","—");
             return;
           }
@@ -342,7 +472,7 @@
         }
 
         const end = await geocode(endText);
-        if(!end){ hint.textContent = "Ziel-Adresse nicht gefunden."; setMeta("—","—","—"); return; }
+        if(!end){ hint.textContent = "Ziel nicht gefunden."; setMeta("—","—","—"); return; }
 
         hint.textContent = "Berechne Route…";
 
@@ -355,13 +485,12 @@
         endMarker = L.marker([end.lat, end.lon]).addTo(map).bindPopup("Ziel");
         stopMarkers = stops.map((s, idx) => L.marker([s.lat, s.lon]).addTo(map).bindPopup(`Stopp ${idx+1}`));
 
-        // Route line (Apple-ish: thicker)
+        // Route line
         routeLine = L.geoJSON(r.geometry, { style: { weight: 6, opacity: 0.95 } }).addTo(map);
-
         map.fitBounds(routeLine.getBounds().pad(0.15));
 
         setMeta("Verbunden", km(r.distance), hmin(r.duration));
-        hint.textContent = "Fertig. Du kannst Adressen ändern und erneut berechnen.";
+        hint.textContent = "Fertig.";
       } catch(e){
         console.error(e);
         hint.textContent = "Fehler. Bitte nochmal probieren (Adresse genauer schreiben).";
