@@ -1,58 +1,65 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Urlaubsplaner</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Urlaubsplaner</title>
 
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 
-<style>
-body { margin:0; }
-#map { height:100vh; }
+  <style>
+    body { margin:0; }
+    #map { height:100vh; }
 
-.card{
-position:absolute;
-top:14px;
-left:14px;
-z-index:1000;
-width:340px;
-background:rgba(255,255,255,0.95);
-border-radius:18px;
-padding:14px;
-box-shadow:0 16px 40px rgba(0,0,0,0.18);
-font-family:-apple-system;
-}
+    .card{
+      position:absolute; top:14px; left:14px; z-index:1000;
+      width:340px; max-width:calc(100vw - 28px);
+      background:rgba(255,255,255,0.95);
+      border-radius:18px; padding:14px;
+      box-shadow:0 16px 40px rgba(0,0,0,0.18);
+      font-family:-apple-system, system-ui, Segoe UI, Roboto, Arial, sans-serif;
+    }
+    .row{ display:flex; gap:6px; margin-bottom:8px; }
+    .btn{
+      padding:10px; border-radius:12px; border:0; font-weight:800;
+      cursor:pointer; width:100%;
+    }
+    .gray{ background:#eee; }
+    .blue{ background:#0a84ff; color:#fff; }
 
-.field{width:100%;padding:12px;border-radius:12px;border:1px solid #ddd;margin-bottom:8px;}
-.btn{padding:10px;border-radius:12px;border:0;font-weight:700;cursor:pointer;margin-top:6px;width:100%;}
-.blue{background:#0a84ff;color:#fff;}
-.gray{background:#eee;}
-.row{display:flex;gap:6px;margin-bottom:6px;}
-.meta{font-size:13px;margin-top:8px;}
-</style>
+    .field{
+      width:100%; box-sizing:border-box;
+      padding:12px; border-radius:12px;
+      border:1px solid #ddd; margin-bottom:8px;
+      font-size:14px; outline:none;
+      background:#fff;
+    }
+    .meta{ font-size:13px; margin-top:8px; }
+    .hint{ font-size:12px; opacity:.75; margin-top:6px; }
+    .stopRow{ display:flex; gap:6px; align-items:center; margin-bottom:8px; }
+    .xbtn{ width:44px; }
+  </style>
 </head>
 <body>
 
 <div class="card">
+  <div class="row">
+    <button class="btn gray" onclick="setMapMode('start')">Start wählen</button>
+    <button class="btn gray" onclick="setMapMode('stop')">Stopp wählen</button>
+    <button class="btn gray" onclick="setMapMode('ziel')">Ziel wählen</button>
+  </div>
 
-<div class="row">
-<button class="btn gray" onclick="setMapMode('start')">📍 Start wählen</button>
-<button class="btn gray" onclick="setMapMode('stop')">🟡 Stopp wählen</button>
-<button class="btn gray" onclick="setMapMode('ziel')">🏁 Ziel wählen</button>
-</div>
+  <input id="startAddr" class="field" placeholder="Startadresse" />
 
-<input id="startAddr" class="field" placeholder="Startadresse">
+  <div id="stops"></div>
+  <button class="btn gray" onclick="addStop()">+ Stopp</button>
 
-<div id="stops"></div>
-<button class="btn gray" onclick="addStop()">+ Stopp</button>
+  <input id="endAddr" class="field" placeholder="Zieladresse" />
 
-<input id="endAddr" class="field" placeholder="Zieladresse">
+  <button class="btn blue" onclick="buildRoute()">Route berechnen</button>
 
-<button class="btn blue" onclick="buildRoute()">Route berechnen</button>
-
-<div class="meta" id="meta"></div>
-
+  <div class="meta" id="meta"></div>
+  <div class="hint">Tipp: Marker kann man ziehen. Danach wird die Adresse automatisch angepasst.</div>
 </div>
 
 <div id="map"></div>
@@ -60,106 +67,221 @@ font-family:-apple-system;
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <script>
-const map = L.map('map').setView([51.1657,10.4515],6);
+  // ---------------- Map ----------------
+  const map = L.map('map').setView([51.1657, 10.4515], 6);
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
 
-L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
+  let mapMode = null;
+  function setMapMode(mode){ mapMode = mode; }
 
-let mapMode = null;
+  // ---------------- UI helpers ----------------
+  const stopsDiv = document.getElementById("stops");
+  const metaEl = document.getElementById("meta");
 
-function setMapMode(mode){
-mapMode = mode;
-}
+  // Stop inputs + related markers
+  // Each stop has: { inputEl, marker }
+  let stopItems = [];
 
-function addStop(){
-const input = document.createElement("input");
-input.className="field";
-input.placeholder="Stopp";
-stops.appendChild(input);
-}
+  function addStop(prefillText = "", latlng = null){
+    const row = document.createElement("div");
+    row.className = "stopRow";
 
-let startMarker, endMarker, stopMarkers=[];
+    const input = document.createElement("input");
+    input.className = "field";
+    input.placeholder = "Stopp";
+    input.value = prefillText;
 
-map.on("click", async function(e){
+    const del = document.createElement("button");
+    del.className = "btn gray xbtn";
+    del.textContent = "X";
+    del.onclick = () => {
+      // remove marker if exists
+      const idx = stopItems.findIndex(si => si.inputEl === input);
+      if(idx >= 0){
+        if(stopItems[idx].marker) map.removeLayer(stopItems[idx].marker);
+        stopItems.splice(idx, 1);
+      }
+      row.remove();
+    };
 
-if(!mapMode) return;
+    row.appendChild(input);
+    row.appendChild(del);
+    stopsDiv.appendChild(row);
 
-const addr = await reverseGeocode(e.latlng.lat,e.latlng.lng);
+    const item = { inputEl: input, marker: null };
+    stopItems.push(item);
 
-if(mapMode==="start"){
-document.getElementById("startAddr").value = addr;
-if(startMarker) map.removeLayer(startMarker);
-startMarker=L.marker(e.latlng).addTo(map);
-}
+    // If we have latlng -> create draggable marker bound to this stop
+    if(latlng){
+      item.marker = createDraggableMarker(latlng, "Stopp", async (newLatLng) => {
+        const addr = await reverseGeocode(newLatLng.lat, newLatLng.lng);
+        input.value = addr;
+      });
+    }
 
-if(mapMode==="ziel"){
-document.getElementById("endAddr").value = addr;
-if(endMarker) map.removeLayer(endMarker);
-endMarker=L.marker(e.latlng).addTo(map);
-}
+    return item;
+  }
 
-if(mapMode==="stop"){
-addStop();
-const inputs=document.querySelectorAll("#stops input");
-inputs[inputs.length-1].value=addr;
-const m=L.marker(e.latlng).addTo(map);
-stopMarkers.push(m);
-}
+  // ---------------- Markers ----------------
+  let startMarker = null;
+  let endMarker = null;
 
-mapMode=null;
+  function createDraggableMarker(latlng, label, onMoved){
+    const m = L.marker(latlng, { draggable: true }).addTo(map).bindPopup(label);
 
-});
+    m.on("dragend", async () => {
+      const p = m.getLatLng();
+      try {
+        const addr = await reverseGeocode(p.lat, p.lng);
+        if(onMoved) await onMoved(p, addr);
+      } catch (e) {
+        // fallback: just lat,lng
+        if(onMoved) await onMoved(p, `${p.lat.toFixed(6)}, ${p.lng.toFixed(6)}`);
+      }
+    });
 
-async function reverseGeocode(lat,lon){
-const url=`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`;
-const res=await fetch(url);
-const data=await res.json();
-return data.display_name || lat+","+lon;
-}
+    return m;
+  }
 
-async function geocode(q){
-const url=`https://nominatim.openstreetmap.org/search?format=json&q=${q}`;
-const res=await fetch(url);
-const data=await res.json();
-return {lat:data[0].lat,lon:data[0].lon};
-}
+  // ---------------- Click on map ----------------
+  map.on("click", async (e) => {
+    if(!mapMode) return;
 
-async function buildRoute(){
+    const addr = await reverseGeocode(e.latlng.lat, e.latlng.lng);
 
-if(!startAddr.value || !endAddr.value) return;
+    if(mapMode === "start"){
+      document.getElementById("startAddr").value = addr;
 
-const start=await geocode(startAddr.value);
-const end=await geocode(endAddr.value);
+      if(startMarker) map.removeLayer(startMarker);
+      startMarker = createDraggableMarker(e.latlng, "Start", async (p, a) => {
+        document.getElementById("startAddr").value = a;
+      });
+      startMarker.openPopup();
+    }
 
-let coords=[start];
+    if(mapMode === "ziel"){
+      document.getElementById("endAddr").value = addr;
 
-const stopInputs=document.querySelectorAll("#stops input");
+      if(endMarker) map.removeLayer(endMarker);
+      endMarker = createDraggableMarker(e.latlng, "Ziel", async (p, a) => {
+        document.getElementById("endAddr").value = a;
+      });
+      endMarker.openPopup();
+    }
 
-for(const s of stopInputs){
-if(s.value){
-coords.push(await geocode(s.value));
-}
-}
+    if(mapMode === "stop"){
+      const item = addStop(addr, e.latlng);
+      if(item.marker) item.marker.openPopup();
+    }
 
-coords.push(end);
+    mapMode = null;
+  });
 
-const c=coords.map(c=>`${c.lon},${c.lat}`).join(";");
+  // ---------------- Geocode / Reverse ----------------
+  async function reverseGeocode(lat, lon){
+    const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`;
+    const res = await fetch(url, { headers: { "Accept": "application/json" } });
+    const data = await res.json();
+    return data.display_name || `${lat.toFixed(6)}, ${lon.toFixed(6)}`;
+  }
 
-const url=`https://router.project-osrm.org/route/v1/driving/${c}?overview=full&geometries=geojson`;
+  async function geocodeOne(q){
+    // allow "lat, lon"
+    const m = q.match(/^\s*(-?\d+(\.\d+)?)\s*,\s*(-?\d+(\.\d+)?)\s*$/);
+    if(m) return { lat: parseFloat(m[1]), lon: parseFloat(m[3]) };
 
-const res=await fetch(url);
-const data=await res.json();
+    const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(q)}`;
+    const res = await fetch(url, { headers: { "Accept": "application/json" } });
+    const data = await res.json();
+    if(!data || !data[0]) return null;
+    return { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon) };
+  }
 
-const route=data.routes[0];
+  // ---------------- Routing (OSRM - Auto) ----------------
+  async function routeOSRM(coords){
+    const coordStr = coords.map(c => `${c.lon},${c.lat}`).join(";");
+    const url = `https://router.project-osrm.org/route/v1/driving/${coordStr}?overview=full&geometries=geojson&steps=false`;
+    const res = await fetch(url, { headers: { "Accept":"application/json" } });
+    const data = await res.json();
+    if(!data.routes || !data.routes[0]) return null;
+    return data.routes[0];
+  }
 
-if(window.routeLine) map.removeLayer(window.routeLine);
+  function km(m){ return (m/1000).toFixed(1); }
+  function min(sec){ return Math.round(sec/60); }
 
-window.routeLine=L.geoJSON(route.geometry,{style:{weight:6}}).addTo(map);
+  // ---------------- Build Route ----------------
+  async function buildRoute(){
+    metaEl.textContent = "";
 
-map.fitBounds(window.routeLine.getBounds());
+    const startText = document.getElementById("startAddr").value.trim();
+    const endText   = document.getElementById("endAddr").value.trim();
 
-meta.innerHTML=`Distanz: ${(route.distance/1000).toFixed(1)} km<br>Zeit: ${Math.round(route.duration/60)} min`;
+    if(!startText || !endText){
+      metaEl.textContent = "Bitte Start und Ziel eingeben.";
+      return;
+    }
 
-}
+    // map line remove
+    if(window.routeLine){
+      map.removeLayer(window.routeLine);
+      window.routeLine = null;
+    }
+
+    // Geocode start/end
+    const start = await geocodeOne(startText);
+    if(!start){ metaEl.textContent = "Start nicht gefunden."; return; }
+
+    const stops = [];
+    for(const item of stopItems){
+      const t = item.inputEl.value.trim();
+      if(!t) continue;
+      const g = await geocodeOne(t);
+      if(!g){ metaEl.textContent = `Stopp nicht gefunden: ${t}`; return; }
+      stops.push(g);
+    }
+
+    const end = await geocodeOne(endText);
+    if(!end){ metaEl.textContent = "Ziel nicht gefunden."; return; }
+
+    const all = [start, ...stops, end];
+
+    const r = await routeOSRM(all);
+    if(!r){ metaEl.textContent = "Keine Route gefunden."; return; }
+
+    window.routeLine = L.geoJSON(r.geometry, { style: { weight: 6, opacity: 0.95 } }).addTo(map);
+    map.fitBounds(window.routeLine.getBounds().pad(0.15));
+
+    metaEl.innerHTML = `Distanz: ${km(r.distance)} km<br>Zeit: ${min(r.duration)} min`;
+
+    // OPTIONAL: update markers to geocoded positions (so they match exactly)
+    // Start marker
+    if(startMarker) map.removeLayer(startMarker);
+    startMarker = createDraggableMarker([start.lat, start.lon], "Start", async (p, a) => {
+      document.getElementById("startAddr").value = a;
+    });
+
+    // End marker
+    if(endMarker) map.removeLayer(endMarker);
+    endMarker = createDraggableMarker([end.lat, end.lon], "Ziel", async (p, a) => {
+      document.getElementById("endAddr").value = a;
+    });
+
+    // Stop markers: clear existing and rebuild to match geocoded coords
+    stopItems.forEach(si => { if(si.marker) map.removeLayer(si.marker); si.marker = null; });
+    stopMarkers = [];
+
+    // Attach markers to the stop items in order (only for non-empty stop inputs)
+    let stopIndex = 0;
+    for(const item of stopItems){
+      const t = item.inputEl.value.trim();
+      if(!t) continue;
+      const g = stops[stopIndex++];
+      item.marker = createDraggableMarker([g.lat, g.lon], "Stopp", async (p, a) => {
+        item.inputEl.value = a;
+      });
+    }
+  }
 </script>
 
 </body>
