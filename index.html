@@ -2,69 +2,89 @@
 <html lang="de">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Urlaubsplaner</title>
 
+  <!-- Leaflet -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+
+  <!-- Leaflet Routing Machine -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css"/>
 
   <style>
     body { margin: 0; }
     #map { height: 100vh; width: 100vw; }
 
-    .controls{
+    .controls {
       position: absolute;
       top: 10px;
       left: 10px;
       z-index: 1000;
-      background: white;
-      padding: 10px;
-      border-radius: 12px;
-      box-shadow: 0 6px 18px rgba(0,0,0,0.15);
+      background: rgba(255,255,255,0.95);
+      padding: 12px;
+      border-radius: 14px;
+      box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+      width: 220px;
       font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-      width: 190px;
     }
 
-    .controls h3{
-      margin: 0 0 8px 0;
-      font-size: 16px;
+    .controls h3 {
+      margin: 0 0 10px 0;
+      font-size: 18px;
     }
 
-    .controls button{
-      display: block;
+    .btn {
       width: 100%;
-      padding: 10px;
+      padding: 12px 10px;
+      border: none;
+      border-radius: 12px;
       margin: 6px 0;
-      border: 0;
-      border-radius: 10px;
-      font-size: 14px;
+      font-size: 16px;
+      font-weight: 700;
       cursor: pointer;
     }
+    .btn.primary { background: #1f6feb; color: #fff; }
+    .btn.light   { background: #f0f2f5; color: #111; }
+    .btn.danger  { background: #d1242f; color: #fff; }
 
-    .primary { background: #1f6feb; color: white; }
-    .secondary { background: #f0f2f5; color: #111; }
-    .danger { background: #d1242f; color: white; }
-
-    .mode{
-      margin-top: 8px;
-      padding: 8px;
-      border-radius: 10px;
+    .info {
+      margin-top: 10px;
+      padding: 10px;
       background: #f6f8fa;
-      font-size: 13px;
-      line-height: 1.3;
+      border-radius: 12px;
+      font-size: 14px;
+      line-height: 1.25;
     }
 
-    .status{
-      position: absolute;
-      left: 10px;
-      bottom: 10px;
-      z-index: 1000;
-      background: rgba(255,255,255,0.95);
-      padding: 8px 10px;
-      border-radius: 12px;
-      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-      font-size: 13px;
-      box-shadow: 0 6px 18px rgba(0,0,0,0.12);
-      max-width: calc(100vw - 20px);
+    .badge {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 999px;
+      background: #111;
+      color: #fff;
+      font-size: 12px;
+      font-weight: 700;
+      margin-left: 6px;
+    }
+
+    .small {
+      margin-top: 8px;
+      font-size: 12px;
+      color: #444;
+    }
+
+    /* Kleine Emoji-Marker */
+    .emoji-marker {
+      font-size: 22px;
+      line-height: 22px;
+      transform: translate(-50%, -100%);
+      text-shadow: 0 2px 8px rgba(0,0,0,0.35);
+      user-select: none;
+    }
+
+    /* Routing Machine Panel ausblenden (wir wollen nur Linie + unsere Anzeige) */
+    .leaflet-routing-container {
+      display: none !important;
     }
   </style>
 </head>
@@ -73,105 +93,210 @@
   <div class="controls">
     <h3>Urlaubsplaner</h3>
 
-    <button class="primary" onclick="setMode('start')">📍 Startpunkt setzen</button>
-    <button class="secondary" onclick="setMode('stop')">🟡 Zwischenstopp setzen</button>
-    <button class="primary" onclick="setMode('ziel')">🏁 Ziel setzen</button>
+    <button class="btn primary" id="btnStart">📍 Startpunkt setzen</button>
+    <button class="btn light"   id="btnStop">🟡 Zwischenstopp setzen</button>
+    <button class="btn primary" id="btnZiel">🏁 Ziel setzen</button>
 
-    <button class="secondary" onclick="clearStops()">🧹 Zwischenstopps löschen</button>
-    <button class="danger" onclick="clearAll()">🗑️ Alles löschen</button>
+    <button class="btn light"   id="btnDelStops">🧹 Zwischenstopps löschen</button>
+    <button class="btn danger"  id="btnClear">🗑️ Alles löschen</button>
 
-    <div class="mode" id="modeBox">
-      Modus: <b>Startpunkt</b><br>
-      Tipp: Button drücken → dann auf Karte tippen
+    <div class="info">
+      Modus: <b id="modeText">Startpunkt</b>
+      <span class="badge" id="modeBadge">START</span>
+      <div class="small">Tipp: Button drücken → dann auf die Karte tippen.</div>
+      <hr style="border:none;border-top:1px solid #ddd;margin:10px 0;">
+      <div><b>Route:</b></div>
+      <div id="routeInfo">Noch keine Route (Start + Ziel setzen).</div>
     </div>
   </div>
 
   <div id="map"></div>
 
-  <div class="status" id="statusBox">
-    Tippe auf die Karte, um einen Punkt zu setzen.
-  </div>
-
+  <!-- JS -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js"></script>
 
   <script>
-    // Karte starten (Deutschland-Zoom)
-    const map = L.map('map').setView([51.0, 10.0], 6);
+    // 1) Karte
+    const map = L.map('map').setView([51.505, 10], 5);
 
-    // OpenStreetMap Tiles
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
       attribution: '&copy; OpenStreetMap'
     }).addTo(map);
 
-    // Zustand
-    let mode = "start";
+    // 2) Mode + UI
+    let mode = "start"; // start | stop | ziel
+
+    const modeText  = document.getElementById("modeText");
+    const modeBadge = document.getElementById("modeBadge");
+    const routeInfo = document.getElementById("routeInfo");
+
+    function setMode(m) {
+      mode = m;
+      if (m === "start") {
+        modeText.textContent = "Startpunkt";
+        modeBadge.textContent = "START";
+        modeBadge.style.background = "#1f6feb";
+      }
+      if (m === "stop") {
+        modeText.textContent = "Zwischenstopp";
+        modeBadge.textContent = "STOPP";
+        modeBadge.style.background = "#8250df";
+      }
+      if (m === "ziel") {
+        modeText.textContent = "Ziel";
+        modeBadge.textContent = "ZIEL";
+        modeBadge.style.background = "#238636";
+      }
+    }
+
+    document.getElementById("btnStart").onclick = () => setMode("start");
+    document.getElementById("btnStop").onclick  = () => setMode("stop");
+    document.getElementById("btnZiel").onclick  = () => setMode("ziel");
+
+    // 3) Marker + Daten
+    let startLatLng = null;
+    let zielLatLng  = null;
+    let stopsLatLng = []; // Array von LatLng
 
     let startMarker = null;
-    let zielMarker = null;
-    let stopMarkers = [];
+    let zielMarker  = null;
+    let stopMarkers = []; // Marker array
 
-    const modeBox = document.getElementById("modeBox");
-    const statusBox = document.getElementById("statusBox");
-
-    function setMode(m){
-      mode = m;
-
-      if(mode === "start"){
-        modeBox.innerHTML = 'Modus: <b>Startpunkt</b><br>Tipp: Jetzt auf die Karte tippen';
-      }
-      if(mode === "stop"){
-        modeBox.innerHTML = 'Modus: <b>Zwischenstopp</b><br>Tipp: Du kannst mehrere Stopps setzen';
-      }
-      if(mode === "ziel"){
-        modeBox.innerHTML = 'Modus: <b>Ziel</b><br>Tipp: Jetzt auf die Karte tippen';
-      }
+    function emojiIcon(emoji) {
+      return L.divIcon({
+        className: "",
+        html: `<div class="emoji-marker">${emoji}</div>`,
+        iconSize: [1, 1],
+        iconAnchor: [0, 0]
+      });
     }
 
-    function fmt(latlng){
-      return `${latlng.lat.toFixed(5)}, ${latlng.lng.toFixed(5)}`;
+    function placeStart(latlng) {
+      startLatLng = latlng;
+      if (startMarker) map.removeLayer(startMarker);
+      startMarker = L.marker(latlng, { icon: emojiIcon("📍") }).addTo(map).bindPopup("Start").openPopup();
+      updateRoute();
     }
 
-    function clearStops(){
+    function placeZiel(latlng) {
+      zielLatLng = latlng;
+      if (zielMarker) map.removeLayer(zielMarker);
+      zielMarker = L.marker(latlng, { icon: emojiIcon("🏁") }).addTo(map).bindPopup("Ziel").openPopup();
+      updateRoute();
+    }
+
+    function addStop(latlng) {
+      stopsLatLng.push(latlng);
+      const m = L.marker(latlng, { icon: emojiIcon("🟡") }).addTo(map).bindPopup("Zwischenstopp");
+      stopMarkers.push(m);
+      updateRoute();
+    }
+
+    function deleteStops() {
+      stopsLatLng = [];
       stopMarkers.forEach(m => map.removeLayer(m));
       stopMarkers = [];
-      statusBox.innerHTML = "Zwischenstopps gelöscht.";
+      updateRoute();
     }
 
-    function clearAll(){
-      if(startMarker) { map.removeLayer(startMarker); startMarker = null; }
-      if(zielMarker) { map.removeLayer(zielMarker); zielMarker = null; }
-      clearStops();
-      statusBox.innerHTML = "Alles gelöscht.";
+    function clearAll() {
+      startLatLng = null;
+      zielLatLng  = null;
+      stopsLatLng = [];
+
+      if (startMarker) map.removeLayer(startMarker);
+      if (zielMarker) map.removeLayer(zielMarker);
+      stopMarkers.forEach(m => map.removeLayer(m));
+
+      startMarker = null;
+      zielMarker  = null;
+      stopMarkers = [];
+
+      removeRoute();
+      routeInfo.textContent = "Noch keine Route (Start + Ziel setzen).";
     }
 
-    // Klick auf Karte
-    map.on("click", (e) => {
-      const p = e.latlng;
+    document.getElementById("btnDelStops").onclick = deleteStops;
+    document.getElementById("btnClear").onclick    = clearAll;
 
-      if(mode === "start"){
-        // Start überschreiben (nur 1 Start)
-        if(startMarker) map.removeLayer(startMarker);
+    // 4) Routing (Route verbinden)
+    let routingControl = null;
 
-        startMarker = L.marker(p).addTo(map).bindPopup("Startpunkt").openPopup();
-        statusBox.innerHTML = `✅ Start gesetzt: <b>${fmt(p)}</b>`;
+    function removeRoute() {
+      if (routingControl) {
+        map.removeControl(routingControl);
+        routingControl = null;
+      }
+    }
+
+    function fmtKm(meters) {
+      const km = meters / 1000;
+      return km.toFixed(km < 10 ? 2 : 1) + " km";
+    }
+
+    function fmtTime(seconds) {
+      const h = Math.floor(seconds / 3600);
+      const m = Math.round((seconds % 3600) / 60);
+      if (h <= 0) return m + " min";
+      return h + " h " + m + " min";
+    }
+
+    function updateRoute() {
+      // Route nur wenn Start UND Ziel da sind
+      if (!startLatLng || !zielLatLng) {
+        removeRoute();
+        routeInfo.textContent = "Noch keine Route (Start + Ziel setzen).";
+        return;
       }
 
-      if(mode === "stop"){
-        // Stopps können mehrere sein
-        const m = L.marker(p).addTo(map).bindPopup("Zwischenstopp").openPopup();
-        stopMarkers.push(m);
-        statusBox.innerHTML = `🟡 Zwischenstopp #${stopMarkers.length}: <b>${fmt(p)}</b>`;
-      }
+      const waypoints = [startLatLng, ...stopsLatLng, zielLatLng].map(ll => L.Routing.waypoint(ll));
 
-      if(mode === "ziel"){
-        // Ziel überschreiben (nur 1 Ziel)
-        if(zielMarker) map.removeLayer(zielMarker);
+      if (!routingControl) {
+        routingControl = L.Routing.control({
+          waypoints,
+          addWaypoints: false,
+          routeWhileDragging: false,
+          draggableWaypoints: false,
+          showAlternatives: false,
+          fitSelectedRoutes: true,
+          show: false,
+          lineOptions: {
+            addWaypoints: false
+          },
+          // OSRM public (für Demo ok)
+          router: L.Routing.osrmv1({
+            serviceUrl: "https://router.project-osrm.org/route/v1"
+          })
+        }).addTo(map);
 
-        zielMarker = L.marker(p).addTo(map).bindPopup("Ziel").openPopup();
-        statusBox.innerHTML = `🏁 Ziel gesetzt: <b>${fmt(p)}</b>`;
+        routingControl.on("routesfound", function(e) {
+          const r = e.routes[0];
+          if (!r || !r.summary) return;
+          routeInfo.innerHTML =
+            "Distanz: <b>" + fmtKm(r.summary.totalDistance) + "</b><br>" +
+            "Zeit: <b>" + fmtTime(r.summary.totalTime) + "</b>";
+        });
+
+        routingControl.on("routingerror", function() {
+          routeInfo.textContent = "Routing-Fehler (evtl. kein Weg auf Straßen).";
+        });
+
+      } else {
+        routingControl.setWaypoints(waypoints);
       }
+    }
+
+    // 5) Klick auf Karte -> je nach Modus Marker setzen
+    map.on("click", function(e) {
+      if (mode === "start") placeStart(e.latlng);
+      if (mode === "stop")  addStop(e.latlng);
+      if (mode === "ziel")  placeZiel(e.latlng);
     });
+
+    // Default Mode
+    setMode("start");
   </script>
 </body>
 </html>
