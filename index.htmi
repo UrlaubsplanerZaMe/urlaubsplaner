@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Urlaubsplaner</title>
+
+  <!-- Leaflet -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <!-- Leaflet Routing Machine (für Route + Drag) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
+  <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js"></script>
+
+  <style>
+    body { margin:0; }
+    #map { height:100vh; width:100vw; }
+
+    .panel{
+      position:absolute;
+      top:10px; left:10px;
+      z-index:9999;
+      background:rgba(255,255,255,.95);
+      padding:12px;
+      border-radius:14px;
+      width:220px;
+      box-shadow:0 10px 30px rgba(0,0,0,.18);
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    }
+    .panel h3{ margin:0 0 10px 0; font-size:18px; }
+    .btn{
+      width:100%;
+      padding:10px 12px;
+      border-radius:12px;
+      border:0;
+      margin:6px 0;
+      font-size:16px;
+      cursor:pointer;
+    }
+    .blue{ background:#1e6fe8; color:white; }
+    .gray{ background:#f1f3f5; }
+    .red{ background:#d83a3a; color:white; }
+
+    .info{
+      margin-top:10px;
+      background:#fff;
+      border-radius:12px;
+      padding:10px;
+      font-size:14px;
+      border:1px solid #eee;
+    }
+    .badge{
+      display:inline-block;
+      padding:4px 10px;
+      border-radius:999px;
+      background:#e7f1ff;
+      color:#1e6fe8;
+      font-weight:700;
+      margin-left:6px;
+      font-size:12px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="panel">
+  <h3>Urlaubsplaner</h3>
+
+  <button class="btn blue" onclick="setMode('start')">📍 Startpunkt setzen</button>
+  <button class="btn gray" onclick="setMode('stop')">🟡 Zwischenstopp setzen</button>
+  <button class="btn blue" onclick="setMode('ziel')">🏁 Ziel setzen</button>
+
+  <button class="btn gray" onclick="clearStops()">🧹 Zwischenstopps löschen</button>
+  <button class="btn red" onclick="clearAll()">🗑️ Alles löschen</button>
+
+  <div class="info" id="infoBox">
+    Modus: <b id="modeTxt">Startpunkt</b> <span class="badge" id="modeBadge">START</span><br>
+    Tipp: Button drücken → dann auf die Karte tippen.<br><br>
+    <b>Route:</b><br>
+    Distanz: <span id="distTxt">–</span><br>
+    Zeit: <span id="timeTxt">–</span>
+    <div style="margin-top:8px; font-size:12px; color:#444;">
+      <b>Drag:</b> Zieh die Route direkt auf der Karte (sie passt sich an).
+    </div>
+  </div>
+</div>
+
+<div id="map"></div>
+
+<script>
+  // Karte
+  const map = L.map('map').setView([51.1657, 10.4515], 6);
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+
+  // Zustand
+  let mode = "start";
+  let startMarker = null;
+  let zielMarker = null;
+  let stopMarkers = []; // Zwischenstopps
+  let routing = null;
+
+  function setMode(m){
+    mode = m;
+    const modeTxt = document.getElementById('modeTxt');
+    const modeBadge = document.getElementById('modeBadge');
+    if(m === "start"){ modeTxt.textContent="Startpunkt"; modeBadge.textContent="START"; modeBadge.style.background="#e7f1ff"; modeBadge.style.color="#1e6fe8"; }
+    if(m === "stop"){ modeTxt.textContent="Zwischenstopp"; modeBadge.textContent="STOP"; modeBadge.style.background="#fff3cd"; modeBadge.style.color="#8a6d00"; }
+    if(m === "ziel"){ modeTxt.textContent="Ziel"; modeBadge.textContent="ZIEL"; modeBadge.style.background="#e8ffe7"; modeBadge.style.color="#1f7a1f"; }
+  }
+
+  // Klick auf Karte: Marker setzen
+  map.on('click', (e) => {
+    if(mode === "start"){
+      if(startMarker) map.removeLayer(startMarker);
+      startMarker = L.marker(e.latlng).addTo(map).bindPopup("Start").openPopup();
+    }
+
+    if(mode === "stop"){
+      const m = L.marker(e.latlng).addTo(map).bindPopup("Stopp");
+      stopMarkers.push(m);
+      m.openPopup();
+    }
+
+    if(mode === "ziel"){
+      if(zielMarker) map.removeLayer(zielMarker);
+      zielMarker = L.marker(e.latlng).addTo(map).bindPopup("Ziel").openPopup();
+    }
+
+    updateRoute();
+  });
+
+  function clearStops(){
+    stopMarkers.forEach(m => map.removeLayer(m));
+    stopMarkers = [];
+    updateRoute();
+  }
+
+  function clearAll(){
+    if(startMarker){ map.removeLayer(startMarker); startMarker=null; }
+    if(zielMarker){ map.removeLayer(zielMarker); zielMarker=null; }
+    clearStops();
+    if(routing){ map.removeControl(routing); routing=null; }
+    setText("distTxt","–"); setText("timeTxt","–");
+    setMode("start");
+  }
+
+  function setText(id, val){ document.getElementById(id).textContent = val; }
+
+  // Route + DRAG
+  function updateRoute(){
+    if(!startMarker || !zielMarker){
+      if(routing){ map.removeControl(routing); routing=null; }
+      setText("distTxt","–"); setText("timeTxt","–");
+      return;
+    }
+
+    const waypoints = [
+      startMarker.getLatLng(),
+      ...stopMarkers.map(m => m.getLatLng()),
+      zielMarker.getLatLng()
+    ];
+
+    if(routing){
+      routing.setWaypoints(waypoints);
+      return;
+    }
+
+    routing = L.Routing.control({
+      waypoints,
+      routeWhileDragging: true,      // ✅ Route ändert sich beim Ziehen
+      draggableWaypoints: true,      // ✅ Wegpunkte (und Route) sind ziehbar
+      addWaypoints: true,            // ✅ per Klick auf Route neue Punkte setzen
+      show: false,                   // Panel von Routing Machine ausblenden
+      lineOptions: { styles: [{ weight: 6, opacity: 0.9 }] }
+    }).addTo(map);
+
+    routing.on('routesfound', (ev) => {
+      const r = ev.routes[0];
+      const km = (r.summary.totalDistance/1000).toFixed(1) + " km";
+      const sec = r.summary.totalTime;
+      const h = Math.floor(sec/3600);
+      const m = Math.round((sec%3600)/60);
+      const t = (h>0 ? (h+" h ") : "") + (m+" min");
+      setText("distTxt", km);
+      setText("timeTxt", t);
+    });
+  }
+
+  setMode("start");
+</script>
+</body>
+</html>
