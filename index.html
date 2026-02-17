@@ -1,193 +1,321 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="de">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Urlaubsplaner</title>
 
-  <!-- Leaflet -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
-  <!-- Leaflet Routing Machine (für Route + Drag) -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
-  <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 
   <style>
-    body { margin:0; }
-    #map { height:100vh; width:100vw; }
+    body { margin: 0; }
+    #map { height: 100vh; }
 
-    .panel{
-      position:absolute;
-      top:10px; left:10px;
-      z-index:9999;
-      background:rgba(255,255,255,.95);
-      padding:12px;
-      border-radius:14px;
-      width:220px;
-      box-shadow:0 10px 30px rgba(0,0,0,.18);
+    .panel {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      z-index: 1000;
+      width: 320px;
+      max-width: calc(100vw - 24px);
+      background: rgba(255,255,255,0.95);
+      border-radius: 14px;
+      padding: 12px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.18);
       font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
     }
-    .panel h3{ margin:0 0 10px 0; font-size:18px; }
-    .btn{
-      width:100%;
-      padding:10px 12px;
-      border-radius:12px;
-      border:0;
-      margin:6px 0;
-      font-size:16px;
-      cursor:pointer;
-    }
-    .blue{ background:#1e6fe8; color:white; }
-    .gray{ background:#f1f3f5; }
-    .red{ background:#d83a3a; color:white; }
 
-    .info{
-      margin-top:10px;
-      background:#fff;
-      border-radius:12px;
-      padding:10px;
-      font-size:14px;
-      border:1px solid #eee;
+    .panel h1 {
+      font-size: 16px;
+      margin: 0 0 10px 0;
     }
-    .badge{
-      display:inline-block;
-      padding:4px 10px;
-      border-radius:999px;
-      background:#e7f1ff;
-      color:#1e6fe8;
-      font-weight:700;
-      margin-left:6px;
-      font-size:12px;
+
+    .row { display: flex; gap: 8px; }
+    .row > * { flex: 1; }
+
+    label {
+      display: block;
+      font-size: 12px;
+      opacity: 0.8;
+      margin: 8px 0 4px;
+    }
+
+    input[type="text"]{
+      width: 100%;
+      box-sizing: border-box;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 10px;
+      outline: none;
+      font-size: 14px;
+    }
+
+    .stopRow {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      margin-top: 8px;
+    }
+    .stopRow input { flex: 1; }
+    .smallBtn {
+      border: 0;
+      border-radius: 10px;
+      padding: 10px 10px;
+      cursor: pointer;
+      background: #eee;
+      font-weight: 600;
+    }
+
+    .btn {
+      border: 0;
+      border-radius: 12px;
+      padding: 12px;
+      cursor: pointer;
+      font-weight: 700;
+      font-size: 14px;
+    }
+    .primary { background: #1f6feb; color: white; }
+    .danger { background: #d1242f; color: white; }
+    .muted { background: #f1f1f1; color: #111; }
+
+    .hint {
+      margin-top: 10px;
+      font-size: 13px;
+      background: #f6f7f9;
+      border-radius: 12px;
+      padding: 10px;
+      border: 1px solid #e6e8ee;
+    }
+
+    .status {
+      margin-top: 10px;
+      font-size: 13px;
+      background: #ffffff;
+      border-radius: 12px;
+      padding: 10px;
+      border: 1px solid #e6e8ee;
+      min-height: 20px;
+    }
+
+    .pill {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      background: #eef3ff;
+      color: #1f6feb;
+      margin-left: 6px;
     }
   </style>
 </head>
 <body>
+  <div class="panel">
+    <h1>Urlaubsplaner <span class="pill" id="modePill">Auto</span></h1>
 
-<div class="panel">
-  <h3>Urlaubsplaner</h3>
-
-  <button class="btn blue" onclick="setMode('start')">📍 Startpunkt setzen</button>
-  <button class="btn gray" onclick="setMode('stop')">🟡 Zwischenstopp setzen</button>
-  <button class="btn blue" onclick="setMode('ziel')">🏁 Ziel setzen</button>
-
-  <button class="btn gray" onclick="clearStops()">🧹 Zwischenstopps löschen</button>
-  <button class="btn red" onclick="clearAll()">🗑️ Alles löschen</button>
-
-  <div class="info" id="infoBox">
-    Modus: <b id="modeTxt">Startpunkt</b> <span class="badge" id="modeBadge">START</span><br>
-    Tipp: Button drücken → dann auf die Karte tippen.<br><br>
-    <b>Route:</b><br>
-    Distanz: <span id="distTxt">–</span><br>
-    Zeit: <span id="timeTxt">–</span>
-    <div style="margin-top:8px; font-size:12px; color:#444;">
-      <b>Drag:</b> Zieh die Route direkt auf der Karte (sie passt sich an).
+    <div class="row">
+      <button class="btn muted" onclick="setProfile('driving')">🚗 Auto</button>
+      <button class="btn muted" onclick="setProfile('cycling')">🚴 Fahrrad</button>
+      <button class="btn muted" onclick="setProfile('walking')">🚶 Zu Fuß</button>
     </div>
+
+    <label>📍 Start (Adresse)</label>
+    <input id="startAddr" type="text" placeholder="z.B. Marienplatz 1, München" />
+
+    <label>🟡 Zwischenstopps (Adresse)</label>
+    <div id="stops"></div>
+    <button class="btn muted" style="width:100%; margin-top:8px;" onclick="addStop()">➕ Zwischenstopp hinzufügen</button>
+
+    <label>🏁 Ziel (Adresse)</label>
+    <input id="endAddr" type="text" placeholder="z.B. Domplatz 1, Köln" />
+
+    <div class="row" style="margin-top:10px;">
+      <button class="btn primary" onclick="buildRoute()">🧭 Route berechnen</button>
+      <button class="btn danger" onclick="clearAll()">🗑️ Alles löschen</button>
+    </div>
+
+    <div class="hint">
+      Tipp: Gib Start/Ziel/Stops als Adresse ein → <b>Route berechnen</b>.
+      <br/>Falls nix gefunden wird: Stadt/Land dazuschreiben.
+    </div>
+
+    <div class="status" id="statusBox"></div>
   </div>
-</div>
 
-<div id="map"></div>
+  <div id="map"></div>
 
-<script>
-  // Karte
-  const map = L.map('map').setView([51.1657, 10.4515], 6);
-  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-  // Zustand
-  let mode = "start";
-  let startMarker = null;
-  let zielMarker = null;
-  let stopMarkers = []; // Zwischenstopps
-  let routing = null;
+  <script>
+    // ---------------- Map ----------------
+    const map = L.map('map').setView([51.1657, 10.4515], 6); // Deutschland
 
-  function setMode(m){
-    mode = m;
-    const modeTxt = document.getElementById('modeTxt');
-    const modeBadge = document.getElementById('modeBadge');
-    if(m === "start"){ modeTxt.textContent="Startpunkt"; modeBadge.textContent="START"; modeBadge.style.background="#e7f1ff"; modeBadge.style.color="#1e6fe8"; }
-    if(m === "stop"){ modeTxt.textContent="Zwischenstopp"; modeBadge.textContent="STOP"; modeBadge.style.background="#fff3cd"; modeBadge.style.color="#8a6d00"; }
-    if(m === "ziel"){ modeTxt.textContent="Ziel"; modeBadge.textContent="ZIEL"; modeBadge.style.background="#e8ffe7"; modeBadge.style.color="#1f7a1f"; }
-  }
-
-  // Klick auf Karte: Marker setzen
-  map.on('click', (e) => {
-    if(mode === "start"){
-      if(startMarker) map.removeLayer(startMarker);
-      startMarker = L.marker(e.latlng).addTo(map).bindPopup("Start").openPopup();
-    }
-
-    if(mode === "stop"){
-      const m = L.marker(e.latlng).addTo(map).bindPopup("Stopp");
-      stopMarkers.push(m);
-      m.openPopup();
-    }
-
-    if(mode === "ziel"){
-      if(zielMarker) map.removeLayer(zielMarker);
-      zielMarker = L.marker(e.latlng).addTo(map).bindPopup("Ziel").openPopup();
-    }
-
-    updateRoute();
-  });
-
-  function clearStops(){
-    stopMarkers.forEach(m => map.removeLayer(m));
-    stopMarkers = [];
-    updateRoute();
-  }
-
-  function clearAll(){
-    if(startMarker){ map.removeLayer(startMarker); startMarker=null; }
-    if(zielMarker){ map.removeLayer(zielMarker); zielMarker=null; }
-    clearStops();
-    if(routing){ map.removeControl(routing); routing=null; }
-    setText("distTxt","–"); setText("timeTxt","–");
-    setMode("start");
-  }
-
-  function setText(id, val){ document.getElementById(id).textContent = val; }
-
-  // Route + DRAG
-  function updateRoute(){
-    if(!startMarker || !zielMarker){
-      if(routing){ map.removeControl(routing); routing=null; }
-      setText("distTxt","–"); setText("timeTxt","–");
-      return;
-    }
-
-    const waypoints = [
-      startMarker.getLatLng(),
-      ...stopMarkers.map(m => m.getLatLng()),
-      zielMarker.getLatLng()
-    ];
-
-    if(routing){
-      routing.setWaypoints(waypoints);
-      return;
-    }
-
-    routing = L.Routing.control({
-      waypoints,
-      routeWhileDragging: true,      // ✅ Route ändert sich beim Ziehen
-      draggableWaypoints: true,      // ✅ Wegpunkte (und Route) sind ziehbar
-      addWaypoints: true,            // ✅ per Klick auf Route neue Punkte setzen
-      show: false,                   // Panel von Routing Machine ausblenden
-      lineOptions: { styles: [{ weight: 6, opacity: 0.9 }] }
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap'
     }).addTo(map);
 
-    routing.on('routesfound', (ev) => {
-      const r = ev.routes[0];
-      const km = (r.summary.totalDistance/1000).toFixed(1) + " km";
-      const sec = r.summary.totalTime;
-      const h = Math.floor(sec/3600);
-      const m = Math.round((sec%3600)/60);
-      const t = (h>0 ? (h+" h ") : "") + (m+" min");
-      setText("distTxt", km);
-      setText("timeTxt", t);
-    });
-  }
+    // ---------------- UI state ----------------
+    let profile = "driving"; // driving / cycling / walking
+    const modePill = document.getElementById("modePill");
+    const statusBox = document.getElementById("statusBox");
+    const stopsDiv = document.getElementById("stops");
 
-  setMode("start");
-</script>
+    function setProfile(p){
+      profile = p;
+      modePill.textContent = p === "driving" ? "Auto" : (p === "cycling" ? "Fahrrad" : "Zu Fuß");
+    }
+
+    function setStatus(msg){
+      statusBox.textContent = msg;
+    }
+
+    // Add first stop field initially (optional - you can delete it)
+    addStop(false);
+
+    function addStop(focus=true){
+      const row = document.createElement("div");
+      row.className = "stopRow";
+
+      const input = document.createElement("input");
+      input.type = "text";
+      input.placeholder = "z.B. Salzburg, Österreich";
+
+      const del = document.createElement("button");
+      del.className = "smallBtn";
+      del.textContent = "✖";
+      del.title = "Zwischenstopp löschen";
+      del.onclick = () => row.remove();
+
+      row.appendChild(input);
+      row.appendChild(del);
+      stopsDiv.appendChild(row);
+
+      if(focus) input.focus();
+    }
+
+    // ---------------- Markers + Route Layer ----------------
+    let startMarker = null;
+    let endMarker = null;
+    let stopMarkers = [];
+    let routeLine = null;
+
+    function clearMapLayers(){
+      if(startMarker){ map.removeLayer(startMarker); startMarker = null; }
+      if(endMarker){ map.removeLayer(endMarker); endMarker = null; }
+      stopMarkers.forEach(m => map.removeLayer(m));
+      stopMarkers = [];
+      if(routeLine){ map.removeLayer(routeLine); routeLine = null; }
+    }
+
+    function clearAll(){
+      document.getElementById("startAddr").value = "";
+      document.getElementById("endAddr").value = "";
+      stopsDiv.innerHTML = "";
+      addStop(false);
+      clearMapLayers();
+      setStatus("");
+    }
+
+    // ---------------- Geocoding (Nominatim) ----------------
+    async function geocode(query){
+      const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(query)}`;
+      // Nominatim mag eigentlich einen eindeutigen User-Agent; im Browser geht das nur eingeschränkt.
+      const res = await fetch(url, { headers: { "Accept": "application/json" } });
+      if(!res.ok) throw new Error("Geocoding-Fehler");
+      const data = await res.json();
+      if(!data || !data.length) return null;
+      return { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon), name: data[0].display_name };
+    }
+
+    // ---------------- Routing (OSRM) ----------------
+    async function routeOSRM(coords){
+      // coords = [{lat, lon}, ...]
+      // OSRM expects lon,lat;lon,lat
+      const coordStr = coords.map(c => `${c.lon},${c.lat}`).join(";");
+      const url = `https://router.project-osrm.org/route/v1/${profile}/${coordStr}?overview=full&geometries=geojson&steps=false`;
+
+      const res = await fetch(url, { headers: { "Accept": "application/json" } });
+      if(!res.ok) throw new Error("Routing-Fehler");
+      const data = await res.json();
+      if(!data.routes || !data.routes.length) return null;
+      return data.routes[0];
+    }
+
+    function km(m){ return (m/1000).toFixed(1); }
+    function hmin(sec){
+      const m = Math.round(sec/60);
+      const h = Math.floor(m/60);
+      const mm = m % 60;
+      return h > 0 ? `${h} h ${mm} min` : `${mm} min`;
+    }
+
+    // ---------------- Main: build route ----------------
+    async function buildRoute(){
+      try{
+        setStatus("Suche Adressen…");
+
+        const startText = document.getElementById("startAddr").value.trim();
+        const endText = document.getElementById("endAddr").value.trim();
+
+        if(!startText || !endText){
+          setStatus("Bitte Start UND Ziel eingeben.");
+          return;
+        }
+
+        clearMapLayers();
+
+        const start = await geocode(startText);
+        if(!start){ setStatus("Start-Adresse nicht gefunden."); return; }
+
+        // stops
+        const stopInputs = Array.from(stopsDiv.querySelectorAll("input"))
+          .map(i => i.value.trim())
+          .filter(v => v.length > 0);
+
+        const stops = [];
+        for(const s of stopInputs){
+          const g = await geocode(s);
+          if(!g){
+            setStatus(`Zwischenstopp nicht gefunden: "${s}"`);
+            return;
+          }
+          stops.push(g);
+        }
+
+        const end = await geocode(endText);
+        if(!end){ setStatus("Ziel-Adresse nicht gefunden."); return; }
+
+        setStatus("Berechne Route…");
+
+        const all = [start, ...stops, end];
+        const r = await routeOSRM(all);
+        if(!r){ setStatus("Keine Route gefunden."); return; }
+
+        // Markers
+        startMarker = L.marker([start.lat, start.lon]).addTo(map).bindPopup("Start");
+        endMarker = L.marker([end.lat, end.lon]).addTo(map).bindPopup("Ziel");
+
+        stopMarkers = stops.map((s, idx) =>
+          L.marker([s.lat, s.lon]).addTo(map).bindPopup(`Zwischenstopp ${idx+1}`)
+        );
+
+        // Route line
+        routeLine = L.geoJSON(r.geometry, {
+          style: { weight: 5 }
+        }).addTo(map);
+
+        // Fit map
+        const bounds = routeLine.getBounds();
+        map.fitBounds(bounds.pad(0.15));
+
+        // Stats
+        setStatus(`Route: Distanz ${km(r.distance)} km • Zeit ${hmin(r.duration)}`);
+      } catch(e){
+        console.error(e);
+        setStatus("Fehler. Bitte nochmal probieren (oder Adresse genauer schreiben).");
+      }
+    }
+  </script>
 </body>
 </html>
