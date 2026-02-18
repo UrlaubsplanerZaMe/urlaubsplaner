@@ -12,12 +12,11 @@ body{margin:0;}
 #map{height:100vh;}
 .card{
 position:absolute;top:14px;left:14px;z-index:1000;
-width:330px;background:#fff;border-radius:18px;
+width:320px;background:#fff;border-radius:18px;
 padding:14px;box-shadow:0 16px 40px rgba(0,0,0,0.2);
 font-family:-apple-system;
 }
-.field{width:100%;padding:12px;border-radius:12px;border:1px solid #ddd;margin-bottom:8px;}
-.btn{padding:10px;border-radius:12px;border:0;font-weight:700;background:#eee;width:100%;}
+.btn{padding:10px;border-radius:12px;border:0;background:#eee;width:100%;margin-top:6px;font-weight:700;}
 .row{display:flex;gap:6px;margin-bottom:8px;}
 .meta{font-size:13px;margin-top:8px;}
 </style>
@@ -32,10 +31,9 @@ font-family:-apple-system;
 <button class="btn" onclick="mode='ziel'">Ziel</button>
 </div>
 
-<input id="startAddr" class="field" placeholder="Startadresse">
-<div id="stops"></div>
-<button class="btn" onclick="addStop()">+ Stopp</button>
-<input id="endAddr" class="field" placeholder="Zieladresse">
+<button class="btn" onclick="saveRoute()">Route speichern</button>
+<button class="btn" onclick="loadRoute()">Gespeicherte Route laden</button>
+<button class="btn" onclick="clearRoute()">Route löschen</button>
 
 <div class="meta" id="meta"></div>
 
@@ -46,6 +44,7 @@ font-family:-apple-system;
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <script>
+
 const map=L.map('map').setView([51.1657,10.4515],6);
 L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
 
@@ -53,66 +52,41 @@ let mode=null;
 let startMarker,endMarker;
 let stopMarkers=[];
 
-function createMarker(latlng,label,updateField){
+function createMarker(latlng,label){
 const m=L.marker(latlng,{draggable:true}).addTo(map).bindPopup(label);
 
-m.on("dragend", async ()=>{
-const p=m.getLatLng();
-const addr=await reverseGeocode(p);
-updateField(addr);
+m.on("dragend",()=>{
 buildRoute();
+saveRoute();
 });
 
 return m;
 }
 
-map.on("click",async e=>{
+map.on("click",e=>{
+
 if(!mode)return;
 
-const addr=await reverseGeocode(e.latlng);
-
 if(mode==="start"){
-startAddr.value=addr;
 if(startMarker)map.removeLayer(startMarker);
-startMarker=createMarker(e.latlng,"Start",a=>startAddr.value=a);
+startMarker=createMarker(e.latlng,"Start");
 }
 
 if(mode==="ziel"){
-endAddr.value=addr;
 if(endMarker)map.removeLayer(endMarker);
-endMarker=createMarker(e.latlng,"Ziel",a=>endAddr.value=a);
+endMarker=createMarker(e.latlng,"Ziel");
 }
 
 if(mode==="stop"){
-addStop(addr,e.latlng);
+const m=createMarker(e.latlng,"Stopp");
+stopMarkers.push(m);
 }
 
 buildRoute();
+saveRoute();
 mode=null;
+
 });
-
-function addStop(prefill="",latlng=null){
-
-const input=document.createElement("input");
-input.className="field";
-input.value=prefill;
-stops.appendChild(input);
-
-let marker=null;
-
-if(latlng){
-marker=createMarker(latlng,"Stopp",a=>input.value=a);
-stopMarkers.push(marker);
-}
-
-input.onchange=buildRoute;
-}
-
-async function reverseGeocode(p){
-const res=await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${p.lat}&lon=${p.lng}`);
-const data=await res.json();
-return data.display_name || `${p.lat},${p.lng}`;
-}
 
 async function route(coords){
 
@@ -129,9 +103,7 @@ async function buildRoute(){
 if(!startMarker || !endMarker) return;
 
 let coords=[startMarker.getLatLng()];
-
 stopMarkers.forEach(m=>coords.push(m.getLatLng()));
-
 coords.push(endMarker.getLatLng());
 
 const r=await route(coords);
@@ -142,7 +114,65 @@ window.routeLine=L.geoJSON(r.geometry,{style:{weight:6}}).addTo(map);
 map.fitBounds(window.routeLine.getBounds());
 
 meta.innerHTML=`Distanz ${(r.distance/1000).toFixed(1)} km<br>Zeit ${Math.round(r.duration/60)} min`;
+
 }
+
+// 💾 ROUTE SPEICHERN
+function saveRoute(){
+
+const data={
+start:startMarker?startMarker.getLatLng():null,
+end:endMarker?endMarker.getLatLng():null,
+stops:stopMarkers.map(m=>m.getLatLng())
+};
+
+localStorage.setItem("route",JSON.stringify(data));
+
+}
+
+// 📥 ROUTE LADEN
+function loadRoute(){
+
+const data=JSON.parse(localStorage.getItem("route"));
+if(!data)return;
+
+clearMap();
+
+if(data.start) startMarker=createMarker(data.start,"Start");
+if(data.end) endMarker=createMarker(data.end,"Ziel");
+
+data.stops.forEach(s=>{
+const m=createMarker(s,"Stopp");
+stopMarkers.push(m);
+});
+
+buildRoute();
+}
+
+// ❌ ROUTE LÖSCHEN
+function clearRoute(){
+localStorage.removeItem("route");
+clearMap();
+}
+
+// 🧹 KARTE LEEREN
+function clearMap(){
+
+if(startMarker)map.removeLayer(startMarker);
+if(endMarker)map.removeLayer(endMarker);
+stopMarkers.forEach(m=>map.removeLayer(m));
+
+startMarker=null;
+endMarker=null;
+stopMarkers=[];
+
+if(window.routeLine)map.removeLayer(window.routeLine);
+
+}
+
+// 🚀 BEIM START AUTOMATISCH LADEN
+loadRoute();
+
 </script>
 
 </body>
