@@ -17,7 +17,6 @@
       --blue: #0a84ff;
       --red: #ff3b30;
       --chip: rgba(10,132,255,0.12);
-      --muted: rgba(0,0,0,0.05);
     }
 
     body{ margin:0; }
@@ -69,9 +68,10 @@
       display:flex;
       gap:8px;
       padding: 0 14px 10px;
+      flex-wrap: wrap;
     }
     .tab{
-      flex:1;
+      flex:1 1 45%;
       padding:10px 10px;
       border-radius: 14px;
       border: 1px solid rgba(0,0,0,0.08);
@@ -180,6 +180,12 @@
     .pillLoad{ background: var(--blue); color:#fff; }
     .pillDel{ background: rgba(255,59,48,0.12); color: var(--red); border: 1px solid rgba(255,59,48,0.22); }
 
+    .twoCol{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:8px;
+    }
+
     .meta{
       display:flex;
       gap: 10px;
@@ -201,56 +207,33 @@
       color: var(--sub);
     }
 
-    .twoCol{
-      display:grid;
-      grid-template-columns: 1fr 1fr;
-      gap:8px;
-    }
-
-    .stopRow{
+    /* Profilbild */
+    .avatarWrap{
       display:flex;
-      gap:8px;
+      gap:10px;
       align-items:center;
-      justify-content:space-between;
     }
-    .stopName{
-      font-weight:900;
-      font-size: 13px;
-      color: var(--text);
-      overflow:hidden;
-      text-overflow:ellipsis;
-      white-space:nowrap;
-      max-width: 210px;
-    }
-    .stopTag{
-      font-size: 12px;
-      font-weight:800;
-      padding: 4px 10px;
-      border-radius: 999px;
-      background: rgba(0,0,0,0.05);
-      color: rgba(0,0,0,0.7);
-      border: 1px solid rgba(0,0,0,0.06);
-      white-space: nowrap;
+    .avatar{
+      width:64px;
+      height:64px;
+      border-radius: 18px;
+      border: 1px solid rgba(0,0,0,0.10);
+      object-fit: cover;
+      background: rgba(0,0,0,0.04);
     }
 
-    .imgGrid{
-      display:grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap:8px;
-      margin-top: 8px;
+    /* Leaflet Zoom Button nach unten rechts + etwas "iOS-like" */
+    .leaflet-control-zoom{
+      border: 1px solid rgba(0,0,0,0.12) !important;
+      border-radius: 14px !important;
+      overflow:hidden !important;
+      box-shadow: 0 16px 40px rgba(0,0,0,0.18) !important;
     }
-    .imgGrid img{
-      width:100%;
-      height:80px;
-      object-fit:cover;
-      border-radius: 12px;
-      border:1px solid rgba(0,0,0,0.08);
-    }
-
-    @media (max-width: 390px){
-      .panel{ width: 360px; }
-      .tabs{ flex-wrap: wrap; }
-      .tab{ flex: 1 1 45%; }
+    .leaflet-control-zoom a{
+      width: 44px !important;
+      height: 44px !important;
+      line-height: 44px !important;
+      font-size: 18px !important;
     }
   </style>
 </head>
@@ -267,6 +250,7 @@
       <div class="tab" id="tabDays" onclick="switchTab('days')">Tage</div>
       <div class="tab" id="tabPlan" onclick="switchTab('plan')">Tagesplan</div>
       <div class="tab" id="tabCats" onclick="switchTab('cats')">Rubriken</div>
+      <div class="tab" id="tabProfile" onclick="switchTab('profile')">Profil</div>
     </div>
 
     <div class="content">
@@ -346,10 +330,6 @@
           <span><strong>Zeit:</strong> —</span>
         </div>
 
-        <div class="hint">
-          Tipp: Stop anklicken → unten kannst du Name, Rubrik, Text & Bilder bearbeiten.
-        </div>
-
         <div class="divider"></div>
 
         <label>Stop-Details</label>
@@ -375,6 +355,44 @@
           Rubriken nutzt du bei Stops (Essen, Sehenswürdigkeit, Tankstelle, …).
         </div>
       </div>
+
+      <!-- ===== Profil ===== -->
+      <div id="viewProfile" style="display:none;">
+        <div class="card">
+          <div class="avatarWrap">
+            <img id="profileAvatar" class="avatar" alt="Profilbild" />
+            <div style="flex:1;">
+              <div class="itemTitle" id="profileTitle">Kein Profil</div>
+              <div class="itemSub" id="profileSub">Erstelle dein Profil für die spätere Community.</div>
+            </div>
+          </div>
+        </div>
+
+        <label style="margin-top:10px;">Name / Nickname</label>
+        <input id="profileName" class="field" placeholder="z.B. Max, Familie Müller, RoadtripCrew" />
+
+        <label>Reiseart</label>
+        <select id="travelType" class="field">
+          <option value="alleine">Alleine</option>
+          <option value="freunde">Mit Freunden</option>
+          <option value="familie">Mit Familie</option>
+        </select>
+
+        <label>Profilbild</label>
+        <input id="profileImg" class="field" type="file" accept="image/*" />
+
+        <label>Kurztext (optional)</label>
+        <textarea id="profileBio" class="field" rows="4" style="resize:vertical;" placeholder="z.B. Wir lieben Camping und Natur..."></textarea>
+
+        <div class="row" style="margin-top:10px;">
+          <button class="btn primary" onclick="saveProfile()">Profil speichern</button>
+          <button class="btn danger" onclick="deleteProfile()">Profil löschen</button>
+        </div>
+
+        <div class="hint">
+          Hinweis: Alles wird aktuell lokal gespeichert. Community/Teilen kommt später als eigener Ausbau.
+        </div>
+      </div>
     </div>
   </div>
 
@@ -386,20 +404,30 @@
     // =========================
     // Storage
     // =========================
-    const STORAGE_KEY = "urlaubsplaner_v4";
+    const STORAGE_KEY = "urlaubsplaner_v5";
+
     function loadAll(){
-      try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || { trips: [] }; }
-      catch(e){ return { trips: [] }; }
+      try {
+        const d = JSON.parse(localStorage.getItem(STORAGE_KEY));
+        // Schema sichern
+        if(!d || typeof d !== "object") return { trips: [], profile: null };
+        if(!Array.isArray(d.trips)) d.trips = [];
+        if(!("profile" in d)) d.profile = null;
+        return d;
+      } catch(e){
+        return { trips: [], profile: null };
+      }
     }
     function saveAll(state){
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     }
 
     // =========================
-    // Map setup
+    // Map setup (ZOOM rechts unten)
     // =========================
-    const map = L.map('map').setView([49.8, 9.0], 7);
+    const map = L.map('map', { zoomControl: false }).setView([49.8, 9.0], 7);
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+    L.control.zoom({ position: 'bottomright' }).addTo(map); // + / - rechts unten
 
     let routeLine = null;
     const markerLayer = L.layerGroup().addTo(map);
@@ -414,10 +442,24 @@
       currentRouteId: null,
       currentStopId: null,
       pickMode: null, // "stop"
-      markersByStopId: new Map(), // stopId -> marker
+      markersByStopId: new Map(),
     };
 
-    // Default categories
+    // =========================
+    // Helpers
+    // =========================
+    function uid(){
+      return Math.random().toString(36).slice(2, 10) + "_" + Date.now().toString(36);
+    }
+    function escapeHtml(str){
+      return String(str)
+        .replaceAll("&","&amp;")
+        .replaceAll("<","&lt;")
+        .replaceAll(">","&gt;")
+        .replaceAll('"',"&quot;")
+        .replaceAll("'","&#039;");
+    }
+
     function defaultCategories(){
       return [
         { id: uid(), name: "Essen" },
@@ -427,10 +469,6 @@
         { id: uid(), name: "Einkauf" },
         { id: uid(), name: "Pause" }
       ];
-    }
-
-    function uid(){
-      return Math.random().toString(36).slice(2, 10) + "_" + Date.now().toString(36);
     }
 
     function currentTrip(){
@@ -448,6 +486,10 @@
       const r = currentRoute();
       return r?.stops?.find(s => s.id === app.currentStopId) || null;
     }
+    function catName(catId){
+      const t = currentTrip();
+      return t?.categories?.find(c => c.id === catId)?.name || "Ohne";
+    }
 
     // =========================
     // UI refs
@@ -456,11 +498,13 @@
     const tabDays = document.getElementById("tabDays");
     const tabPlan = document.getElementById("tabPlan");
     const tabCats = document.getElementById("tabCats");
+    const tabProfile = document.getElementById("tabProfile");
 
     const viewTrip = document.getElementById("viewTrip");
     const viewDays = document.getElementById("viewDays");
     const viewPlan = document.getElementById("viewPlan");
     const viewCats = document.getElementById("viewCats");
+    const viewProfile = document.getElementById("viewProfile");
 
     const tripNameEl = document.getElementById("tripName");
     const dateFromEl = document.getElementById("dateFrom");
@@ -483,21 +527,31 @@
     const newCatNameEl = document.getElementById("newCatName");
     const catListEl = document.getElementById("catList");
 
+    // Profil refs
+    const profileAvatarEl = document.getElementById("profileAvatar");
+    const profileTitleEl = document.getElementById("profileTitle");
+    const profileSubEl = document.getElementById("profileSub");
+    const profileNameEl = document.getElementById("profileName");
+    const travelTypeEl = document.getElementById("travelType");
+    const profileImgEl = document.getElementById("profileImg");
+    const profileBioEl = document.getElementById("profileBio");
+
     // =========================
     // Tabs
     // =========================
     function switchTab(name){
-      const all = [tabTrip, tabDays, tabPlan, tabCats];
-      all.forEach(t => t.classList.remove("active"));
+      [tabTrip, tabDays, tabPlan, tabCats, tabProfile].forEach(t => t.classList.remove("active"));
       viewTrip.style.display = "none";
       viewDays.style.display = "none";
       viewPlan.style.display = "none";
       viewCats.style.display = "none";
+      viewProfile.style.display = "none";
 
       if(name === "trip"){ tabTrip.classList.add("active"); viewTrip.style.display="block"; }
       if(name === "days"){ tabDays.classList.add("active"); viewDays.style.display="block"; }
       if(name === "plan"){ tabPlan.classList.add("active"); viewPlan.style.display="block"; }
       if(name === "cats"){ tabCats.classList.add("active"); viewCats.style.display="block"; }
+      if(name === "profile"){ tabProfile.classList.add("active"); viewProfile.style.display="block"; renderProfile(); }
     }
     window.switchTab = switchTab;
 
@@ -522,31 +576,16 @@
       const name = (tripNameEl.value || "").trim();
       const dateFrom = dateFromEl.value || "";
       const dateTo = dateToEl.value || "";
-      if(!name){
-        alert("Bitte Reise-Name eingeben.");
-        return;
-      }
-      if(!dateFrom || !dateTo){
-        alert("Bitte Datum von/bis auswählen.");
-        return;
-      }
+      if(!name){ alert("Bitte Reise-Name eingeben."); return; }
+      if(!dateFrom || !dateTo){ alert("Bitte Datum von/bis auswählen."); return; }
 
       let t = currentTrip();
       if(!t){
-        t = {
-          id: uid(),
-          name,
-          dateFrom,
-          dateTo,
-          categories: defaultCategories(),
-          days: []
-        };
+        t = { id: uid(), name, dateFrom, dateTo, categories: defaultCategories(), days: [] };
         app.data.trips.unshift(t);
         app.currentTripId = t.id;
       }else{
-        t.name = name;
-        t.dateFrom = dateFrom;
-        t.dateTo = dateTo;
+        t.name = name; t.dateFrom = dateFrom; t.dateTo = dateTo;
         if(!Array.isArray(t.categories) || t.categories.length === 0) t.categories = defaultCategories();
         if(!Array.isArray(t.days)) t.days = [];
       }
@@ -567,6 +606,7 @@
     function loadTrip(tripId){
       const t = app.data.trips.find(x => x.id === tripId);
       if(!t) return;
+
       app.currentTripId = t.id;
       app.currentDayId = t.days?.[0]?.id || null;
       app.currentRouteId = t.days?.[0]?.routes?.[0]?.id || null;
@@ -593,10 +633,7 @@
 
     function generateDays(){
       const name = (tripNameEl.value || "").trim();
-      if(!name){
-        alert("Bitte erst Reise-Name eingeben.");
-        return;
-      }
+      if(!name){ alert("Bitte erst Reise-Name eingeben."); return; }
       saveTrip(); // ensures trip exists
 
       const t = currentTrip();
@@ -607,7 +644,6 @@
         return;
       }
 
-      // Keep existing days but ensure all in range exist
       const existingByDate = new Map((t.days||[]).map(d => [d.date, d]));
       const days = [];
       let cur = new Date(from);
@@ -621,20 +657,13 @@
           if(!Array.isArray(ex.routes)) ex.routes = [];
           days.push(ex);
         }else{
-          days.push({
-            id: uid(),
-            date: iso,
-            dayIndex: idx,
-            routes: []
-          });
+          days.push({ id: uid(), date: iso, dayIndex: idx, routes: [] });
         }
         cur.setDate(cur.getDate()+1);
         idx++;
       }
 
       t.days = days;
-
-      // auto-select first day
       app.currentDayId = t.days[0]?.id || null;
       app.currentRouteId = t.days[0]?.routes?.[0]?.id || null;
       app.currentStopId = null;
@@ -645,9 +674,6 @@
     }
     window.generateDays = generateDays;
 
-    // =========================
-    // Day / Route / Stop operations
-    // =========================
     function selectDay(dayId){
       app.currentDayId = dayId;
       const d = currentDay();
@@ -661,10 +687,7 @@
     function addRoute(){
       const d = currentDay();
       const t = currentTrip();
-      if(!t || !d){
-        alert("Bitte zuerst eine Reise laden und einen Tag auswählen.");
-        return;
-      }
+      if(!t || !d){ alert("Bitte zuerst eine Reise laden und einen Tag auswählen."); return; }
       const nm = (newRouteNameEl.value || "").trim() || "Route";
       const r = { id: uid(), name: nm, stops: [] };
       d.routes.unshift(r);
@@ -675,6 +698,7 @@
       saveAll(app.data);
       clearMapRouteOnly();
       renderAll();
+      drawSelectedRoute();
     }
     window.addRoute = addRoute;
 
@@ -689,6 +713,7 @@
       saveAll(app.data);
       clearMapRouteOnly();
       renderAll();
+      drawSelectedRoute();
     }
 
     function selectRoute(routeId){
@@ -705,37 +730,24 @@
         return;
       }
       app.pickMode = "stop";
-      alert("Stop-Modus aktiv: Tippe jetzt auf die Karte, um einen Stop zur ausgewählten Route hinzuzufügen.");
+      alert("Stop-Modus aktiv: Tippe auf die Karte, um einen Stop hinzuzufügen.");
     }
     window.setPickModeStop = setPickModeStop;
 
     function clearPickMode(){
       app.pickMode = null;
-      // no alert (clean)
     }
     window.clearPickMode = clearPickMode;
 
     async function addStopByAddress(){
       const r = currentRoute();
-      if(!r){
-        alert("Bitte zuerst eine Route auswählen.");
-        return;
-      }
+      if(!r){ alert("Bitte zuerst eine Route auswählen."); return; }
       const q = (stopAddrEl.value || "").trim();
-      if(!q){
-        alert("Bitte Adresse eingeben.");
-        return;
-      }
+      if(!q){ alert("Bitte Adresse eingeben."); return; }
       const g = await geocodeOne(q);
-      if(!g){
-        alert("Adresse nicht gefunden.");
-        return;
-      }
-      const s = makeStop({
-        name: q,
-        lat: g.lat,
-        lon: g.lon
-      });
+      if(!g){ alert("Adresse nicht gefunden."); return; }
+
+      const s = makeStop({ name: q, lat: g.lat, lon: g.lon });
       r.stops.push(s);
       stopAddrEl.value = "";
       app.currentStopId = s.id;
@@ -750,14 +762,7 @@
     function makeStop({name, lat, lon}){
       const t = currentTrip();
       const catId = t?.categories?.[0]?.id || null;
-      return {
-        id: uid(),
-        name: name || "Stop",
-        categoryId: catId,
-        note: "",
-        lat, lon,
-        images: [] // base64
-      };
+      return { id: uid(), name: name || "Stop", categoryId: catId, note: "", lat, lon, images: [] };
     }
 
     function selectStop(stopId){
@@ -774,7 +779,6 @@
 
       saveAll(app.data);
 
-      // remove marker if exists
       const m = app.markersByStopId.get(stopId);
       if(m){
         markerLayer.removeLayer(m);
@@ -791,15 +795,9 @@
     // =========================
     function addCategory(){
       const t = currentTrip();
-      if(!t){
-        alert("Bitte zuerst eine Reise laden.");
-        return;
-      }
+      if(!t){ alert("Bitte zuerst eine Reise laden."); return; }
       const nm = (newCatNameEl.value || "").trim();
-      if(!nm){
-        alert("Bitte Rubrik-Name eingeben.");
-        return;
-      }
+      if(!nm){ alert("Bitte Rubrik-Name eingeben."); return; }
       t.categories.push({ id: uid(), name: nm });
       newCatNameEl.value = "";
       saveAll(app.data);
@@ -810,36 +808,22 @@
     function deleteCategory(catId){
       const t = currentTrip();
       if(!t) return;
-      // prevent deleting if used
       const used = (t.days||[]).some(d => (d.routes||[]).some(r => (r.stops||[]).some(s => s.categoryId === catId)));
-      if(used){
-        alert("Diese Rubrik wird noch bei Stops verwendet. Ändere erst die Stops, dann löschen.");
-        return;
-      }
+      if(used){ alert("Diese Rubrik wird noch verwendet. Erst Stops ändern, dann löschen."); return; }
       t.categories = t.categories.filter(c => c.id !== catId);
       saveAll(app.data);
       renderAll();
     }
 
-    function catName(catId){
-      const t = currentTrip();
-      return t?.categories?.find(c => c.id === catId)?.name || "Ohne";
-    }
-
     // =========================
-    // Map interactions
+    // Map click to add stop
     // =========================
-    map.on("click", async (e) => {
+    map.on("click", (e) => {
       if(app.pickMode !== "stop") return;
-
       const r = currentRoute();
       if(!r) return;
 
-      const s = makeStop({
-        name: "Neuer Stop",
-        lat: e.latlng.lat,
-        lon: e.latlng.lng
-      });
+      const s = makeStop({ name: "Neuer Stop", lat: e.latlng.lat, lon: e.latlng.lng });
       r.stops.push(s);
       app.currentStopId = s.id;
 
@@ -854,14 +838,11 @@
       markerLayer.clearLayers();
       app.markersByStopId.clear();
     }
-
     function clearMapRouteOnly(){
       if(routeLine){ map.removeLayer(routeLine); routeLine = null; }
       markerLayer.clearLayers();
       app.markersByStopId.clear();
-      // markers are redrawn for selected route in drawSelectedRoute()
     }
-
     function focusStopOnMap(stopId){
       const m = app.markersByStopId.get(stopId);
       if(m){
@@ -876,26 +857,20 @@
     async function drawSelectedRoute(){
       const r = currentRoute();
       if(!r){
-        setRouteMeta("-", "-", "-");
+        setRouteMeta("—","—","—");
         clearMapRouteOnly();
         return;
       }
 
-      // clear existing
       clearMapRouteOnly();
 
-      // markers
-      const t = currentTrip();
       (r.stops || []).forEach((s, idx) => {
         const tag = catName(s.categoryId);
         const m = L.marker([s.lat, s.lon], { draggable: true }).addTo(markerLayer);
         app.markersByStopId.set(s.id, m);
 
         m.bindPopup(`<b>${escapeHtml(s.name || ("Stop " + (idx+1)))}</b><br><span style="opacity:.7">${escapeHtml(tag)}</span>`);
-
         m.on("click", () => selectStop(s.id));
-
-        // draggable: update coords and reroute
         m.on("dragend", () => {
           const p = m.getLatLng();
           s.lat = p.lat;
@@ -953,15 +928,6 @@
       return { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon) };
     }
 
-    function escapeHtml(str){
-      return String(str)
-        .replaceAll("&","&amp;")
-        .replaceAll("<","&lt;")
-        .replaceAll(">","&gt;")
-        .replaceAll('"',"&quot;")
-        .replaceAll("'","&#039;");
-    }
-
     // =========================
     // Stop details (name/category/note/images)
     // =========================
@@ -978,7 +944,7 @@
         return `<option value="${c.id}" ${sel}>${escapeHtml(c.name)}</option>`;
       }).join("");
 
-      const imgs = (s.images||[]).map((src) => `<img src="${src}" alt="Bild">`).join("");
+      const imgs = (s.images||[]).map((src) => `<img src="${src}" alt="Bild" style="width:100%;height:80px;object-fit:cover;border-radius:12px;border:1px solid rgba(0,0,0,0.08);">`).join("");
 
       stopDetailsEl.innerHTML = `
         <label style="margin-top:0;">Name</label>
@@ -1000,7 +966,7 @@
         <label>Bilder (lokal)</label>
         <input class="field" id="sdImg" type="file" accept="image/*" />
         <div class="hint">Bilder werden lokal gespeichert (begrenzter Speicher).</div>
-        <div class="imgGrid" id="sdImgGrid">${imgs}</div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px;">${imgs}</div>
       `;
 
       document.getElementById("sdSave").onclick = () => {
@@ -1025,14 +991,11 @@
       document.getElementById("sdImg").onchange = async (ev) => {
         const file = ev.target.files?.[0];
         if(!file) return;
-
-        // Convert to base64
         const base64 = await fileToBase64(file);
         if(!Array.isArray(s.images)) s.images = [];
         s.images.unshift(base64);
-
         saveAll(app.data);
-        renderStopDetails(); // refresh gallery
+        renderStopDetails();
       };
     }
 
@@ -1044,6 +1007,61 @@
         reader.readAsDataURL(file);
       });
     }
+
+    // =========================
+    // Profil
+    // =========================
+    function renderProfile(){
+      const p = app.data.profile;
+
+      if(p?.avatar){
+        profileAvatarEl.src = p.avatar;
+      }else{
+        profileAvatarEl.removeAttribute("src");
+      }
+
+      profileNameEl.value = p?.name || "";
+      travelTypeEl.value = p?.travelType || "alleine";
+      profileBioEl.value = p?.bio || "";
+
+      profileTitleEl.textContent = p?.name ? p.name : "Kein Profil";
+      profileSubEl.textContent = p?.travelType ? humanTravelType(p.travelType) : "Erstelle dein Profil für die spätere Community.";
+    }
+
+    function humanTravelType(v){
+      if(v === "alleine") return "Reiseart: Alleine";
+      if(v === "freunde") return "Reiseart: Mit Freunden";
+      if(v === "familie") return "Reiseart: Mit Familie";
+      return "Reiseart: —";
+    }
+
+    async function saveProfile(){
+      const name = (profileNameEl.value || "").trim();
+      const travelType = travelTypeEl.value;
+      const bio = profileBioEl.value || "";
+
+      let avatar = app.data.profile?.avatar || null;
+
+      const file = profileImgEl.files?.[0];
+      if(file){
+        avatar = await fileToBase64(file);
+      }
+
+      app.data.profile = { name, travelType, bio, avatar, updatedAt: Date.now() };
+      saveAll(app.data);
+      profileImgEl.value = "";
+      renderProfile();
+      alert("Profil gespeichert.");
+    }
+    window.saveProfile = saveProfile;
+
+    function deleteProfile(){
+      if(!confirm("Profil wirklich löschen?")) return;
+      app.data.profile = null;
+      saveAll(app.data);
+      renderProfile();
+    }
+    window.deleteProfile = deleteProfile;
 
     // =========================
     // Render
@@ -1173,11 +1191,8 @@
           el.style.background = active ? "rgba(10,132,255,0.08)" : "rgba(255,255,255,0.9)";
           el.innerHTML = `
             <div class="itemLeft" style="min-width:0;">
-              <div class="stopRow">
-                <div class="stopName">${escapeHtml(s.name || "Stop")}</div>
-                <div class="stopTag">${escapeHtml(catName(s.categoryId))}</div>
-              </div>
-              <div class="itemSub">${(s.note||"").trim() ? "Notiz vorhanden" : "—"}</div>
+              <div class="itemTitle">${escapeHtml(s.name || "Stop")}</div>
+              <div class="itemSub">${escapeHtml(catName(s.categoryId))}${(s.note||"").trim() ? " • Notiz" : ""}${(s.images||[]).length ? " • Bilder" : ""}</div>
             </div>
             <div class="itemBtns">
               <button class="pillBtn pillLoad">Edit</button>
@@ -1222,18 +1237,14 @@
       renderDays();
       renderPlan();
       renderCats();
-
-      // draw route on map when plan view is relevant and a route selected
-      if(currentRoute()){
-        drawSelectedRoute();
-      }
+      if(currentRoute()) drawSelectedRoute();
     }
 
     // =========================
     // Init
     // =========================
     renderAll();
-
+    renderProfile();
   </script>
 </body>
 </html>
