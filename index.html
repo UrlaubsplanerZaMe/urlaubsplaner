@@ -15,17 +15,19 @@
       --text: #0b0f14;
       --sub: rgba(11,15,20,0.65);
       --blue: #0a84ff;
+      --red: #ff3b30;
       --chip: rgba(10,132,255,0.12);
+      --muted: rgba(0,0,0,0.05);
     }
 
     body{ margin:0; }
     #map{ height:100vh; width:100vw; }
 
-    .card{
+    .panel{
       position:absolute;
       top:14px; left:14px;
       z-index:1000;
-      width:360px;
+      width:380px;
       max-width: calc(100vw - 28px);
       background: var(--bg);
       border: 1px solid var(--border);
@@ -46,7 +48,7 @@
     }
     .title{
       font-size: 16px;
-      font-weight: 800;
+      font-weight: 900;
       color: var(--text);
       display:flex;
       align-items:center;
@@ -62,13 +64,38 @@
       border: 1px solid rgba(10,132,255,0.18);
       white-space: nowrap;
     }
+
+    .tabs{
+      display:flex;
+      gap:8px;
+      padding: 0 14px 10px;
+    }
+    .tab{
+      flex:1;
+      padding:10px 10px;
+      border-radius: 14px;
+      border: 1px solid rgba(0,0,0,0.08);
+      background: rgba(0,0,0,0.04);
+      font-weight: 900;
+      cursor:pointer;
+      color: var(--text);
+      text-align:center;
+      user-select:none;
+      font-size: 13px;
+    }
+    .tab.active{
+      background: rgba(10,132,255,0.12);
+      border-color: rgba(10,132,255,0.22);
+      color: var(--blue);
+    }
+
     .content{ padding: 0 14px 14px; }
 
     label{
       display:block;
       margin: 10px 0 6px;
       font-size: 12px;
-      font-weight: 750;
+      font-weight: 800;
       color: var(--sub);
     }
 
@@ -96,13 +123,14 @@
       border-radius: 14px;
       padding: 12px 12px;
       cursor:pointer;
-      font-weight: 850;
+      font-weight: 900;
       font-size: 14px;
       background: rgba(0,0,0,0.06);
       color: var(--text);
     }
     .btn:active{ transform: scale(0.99); }
     .primary{ background: var(--blue); color:#fff; }
+    .danger{ background: rgba(255,59,48,0.12); color: var(--red); border: 1px solid rgba(255,59,48,0.22); }
     .small{ padding: 10px 10px; font-size: 13px; }
 
     .divider{
@@ -110,6 +138,47 @@
       background: rgba(0,0,0,0.07);
       margin: 12px 0 10px;
     }
+
+    .card{
+      background: rgba(255,255,255,0.9);
+      border: 1px solid rgba(0,0,0,0.08);
+      border-radius: 14px;
+      padding: 10px;
+    }
+
+    .list{
+      max-height: 220px;
+      overflow:auto;
+      background: rgba(0,0,0,0.03);
+      border-radius: 14px;
+      padding: 8px;
+      border: 1px solid rgba(0,0,0,0.06);
+    }
+    .item{
+      display:flex;
+      gap:8px;
+      align-items:center;
+      justify-content:space-between;
+      padding:10px;
+      background: rgba(255,255,255,0.9);
+      border: 1px solid rgba(0,0,0,0.07);
+      border-radius: 14px;
+      margin-bottom: 8px;
+    }
+    .item:last-child{ margin-bottom:0; }
+    .itemLeft{ min-width:0; }
+    .itemTitle{ font-weight: 900; font-size: 14px; color: var(--text); }
+    .itemSub{ font-size: 12px; color: var(--sub); margin-top: 2px; }
+    .itemBtns{ display:flex; gap:6px; }
+    .pillBtn{
+      padding: 9px 10px;
+      border-radius: 12px;
+      border:0;
+      font-weight: 900;
+      cursor:pointer;
+    }
+    .pillLoad{ background: var(--blue); color:#fff; }
+    .pillDel{ background: rgba(255,59,48,0.12); color: var(--red); border: 1px solid rgba(255,59,48,0.22); }
 
     .meta{
       display:flex;
@@ -122,30 +191,9 @@
       border: 1px solid rgba(0,0,0,0.08);
       border-radius: 14px;
       padding: 10px;
-    }
-    .meta strong{ color: var(--text); }
-
-    .toggle{
-      display:flex; align-items:center; justify-content:space-between; gap:10px;
-      background: rgba(0,0,0,0.04);
-      border: 1px solid rgba(0,0,0,0.06);
-      padding: 10px 12px;
-      border-radius: 14px;
-      cursor: pointer;
-      user-select:none;
-      font-weight: 900;
-      color: var(--text);
       margin-top: 10px;
     }
-
-    .adv{
-      display:none;
-      margin-top:10px;
-      padding: 10px;
-      border-radius: 14px;
-      border: 1px solid rgba(0,0,0,0.08);
-      background: rgba(255,255,255,0.9);
-    }
+    .meta strong{ color: var(--text); }
 
     .hint{
       margin-top: 10px;
@@ -153,118 +201,179 @@
       color: var(--sub);
     }
 
-    .tripList{
-      max-height: 220px;
-      overflow:auto;
-      background: rgba(0,0,0,0.03);
-      border-radius: 14px;
-      padding: 8px;
-      border: 1px solid rgba(0,0,0,0.06);
+    .twoCol{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:8px;
     }
-    .tripItem{
+
+    .stopRow{
       display:flex;
       gap:8px;
       align-items:center;
       justify-content:space-between;
-      padding:10px;
-      background: rgba(255,255,255,0.9);
-      border: 1px solid rgba(0,0,0,0.07);
-      border-radius: 14px;
-      margin-bottom: 8px;
     }
-    .tripItem:last-child{ margin-bottom:0; }
-    .tripName{ font-weight: 900; font-size: 14px; color: var(--text); }
-    .tripSub{ font-size: 12px; color: var(--sub); margin-top: 2px; }
-    .tripBtns{ display:flex; gap:6px; }
-    .pillBtn{ padding: 9px 10px; border-radius: 12px; border:0; font-weight: 900; cursor:pointer; }
-    .pillLoad{ background: var(--blue); color:#fff; }
-    .pillDel{ background: rgba(255,59,48,0.12); color: #ff3b30; border: 1px solid rgba(255,59,48,0.22); }
+    .stopName{
+      font-weight:900;
+      font-size: 13px;
+      color: var(--text);
+      overflow:hidden;
+      text-overflow:ellipsis;
+      white-space:nowrap;
+      max-width: 210px;
+    }
+    .stopTag{
+      font-size: 12px;
+      font-weight:800;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: rgba(0,0,0,0.05);
+      color: rgba(0,0,0,0.7);
+      border: 1px solid rgba(0,0,0,0.06);
+      white-space: nowrap;
+    }
 
-    .modeRow{
-      display:flex;
+    .imgGrid{
+      display:grid;
+      grid-template-columns: repeat(3, 1fr);
       gap:8px;
-      margin-top:8px;
+      margin-top: 8px;
+    }
+    .imgGrid img{
+      width:100%;
+      height:80px;
+      object-fit:cover;
+      border-radius: 12px;
+      border:1px solid rgba(0,0,0,0.08);
     }
 
-    @media (max-width: 380px){
-      .card{ width: 340px; }
+    @media (max-width: 390px){
+      .panel{ width: 360px; }
+      .tabs{ flex-wrap: wrap; }
+      .tab{ flex: 1 1 45%; }
     }
   </style>
 </head>
 
 <body>
-  <div class="card">
+  <div class="panel">
     <div class="header">
       <div class="title">Urlaubsplaner <span class="chip">🚗 Auto</span></div>
       <button class="btn small" onclick="newTrip()">Neu</button>
     </div>
 
+    <div class="tabs">
+      <div class="tab active" id="tabTrip" onclick="switchTab('trip')">Reise</div>
+      <div class="tab" id="tabDays" onclick="switchTab('days')">Tage</div>
+      <div class="tab" id="tabPlan" onclick="switchTab('plan')">Tagesplan</div>
+      <div class="tab" id="tabCats" onclick="switchTab('cats')">Rubriken</div>
+    </div>
+
     <div class="content">
-      <label>Reise</label>
-      <input id="tripName" class="field" placeholder="Name (z.B. Gardasee 2026)" />
+      <!-- ===== Reise ===== -->
+      <div id="viewTrip">
+        <label>Reise-Name</label>
+        <input id="tripName" class="field" placeholder="z.B. Gardasee 2026" />
 
-      <div class="row" style="margin-top:8px;">
-        <input id="dateFrom" class="field" type="date" />
-        <input id="dateTo" class="field" type="date" />
+        <div class="row" style="margin-top:8px;">
+          <input id="dateFrom" class="field" type="date" />
+          <input id="dateTo" class="field" type="date" />
+        </div>
+
+        <div class="row" style="margin-top:10px;">
+          <button class="btn primary" onclick="generateDays()">Tage erzeugen</button>
+          <button class="btn" onclick="saveTrip()">Reise speichern</button>
+        </div>
+
+        <div class="divider"></div>
+
+        <label>Gespeicherte Reisen</label>
+        <div class="list" id="tripList"></div>
+
+        <div class="hint">
+          Tipp: Nach „Tage erzeugen“ kannst du im Tab „Tage“ deinen Reisetag auswählen.
+        </div>
       </div>
 
-      <div class="modeRow">
-        <button class="btn small" onclick="setMapPickMode('start')">Start wählen</button>
-        <button class="btn small" onclick="setMapPickMode('stop')">Zwischenstopp wählen</button>
-        <button class="btn small" onclick="setMapPickMode('ziel')">Ziel wählen</button>
+      <!-- ===== Tage ===== -->
+      <div id="viewDays" style="display:none;">
+        <div class="card">
+          <div class="itemTitle" id="currentTripLabel">Keine Reise geladen</div>
+          <div class="itemSub" id="currentTripRange">—</div>
+        </div>
+
+        <label style="margin-top:10px;">Tage</label>
+        <div class="list" id="dayList"></div>
+
+        <div class="hint">
+          Tippe einen Tag an → im Tab „Tagesplan“ kannst du Routen & Stops anlegen.
+        </div>
       </div>
 
-      <label>Start</label>
-      <input id="startAddr" class="field" placeholder="z.B. Brensbach" />
+      <!-- ===== Tagesplan ===== -->
+      <div id="viewPlan" style="display:none;">
+        <div class="card">
+          <div class="itemTitle" id="planHeader">Kein Tag gewählt</div>
+          <div class="itemSub" id="planSub">—</div>
+        </div>
 
-      <label>Ziel</label>
-      <input id="endAddr" class="field" placeholder="z.B. Verona" />
-
-      <div class="row" style="margin-top:10px;">
-        <button class="btn primary" onclick="buildRoute()">Tag 1 Route berechnen</button>
-        <button class="btn" onclick="saveTrip()">Reise speichern</button>
-      </div>
-
-      <div class="meta" id="meta">
-        <span><strong>Distanz:</strong> —</span>
-        <span><strong>Zeit:</strong> —</span>
-        <span><strong>Sprit:</strong> —</span>
-        <span><strong>Summe:</strong> —</span>
-      </div>
-
-      <div class="toggle" onclick="toggleAdvanced()">
-        <span>Erweiterte Suche</span>
-        <span id="advArrow">▾</span>
-      </div>
-
-      <div class="adv" id="advanced">
-        <label>Fahrzeug & Verbrauch</label>
+        <label style="margin-top:10px;">Routen am Tag</label>
         <div class="row">
-          <select id="fuelType" class="field" onchange="applyFuelDefaults(); recalcCosts();">
-            <option value="diesel">Diesel</option>
-            <option value="benzin">Benzin</option>
-          </select>
-          <input id="consumption" class="field" type="number" step="0.1" value="6.5" placeholder="l/100km" oninput="recalcCosts()"/>
+          <input id="newRouteName" class="field" placeholder='z.B. "Anreise", "Mittagstour"'/>
+          <button class="btn primary" onclick="addRoute()">+ Route</button>
         </div>
 
-        <label>Spritpreis (€/l) – manuell</label>
-        <div class="row">
-          <input id="fuelPrice" class="field" type="number" step="0.001" placeholder="z.B. 1.799" oninput="recalcCosts()"/>
-          <button class="btn small" onclick="fillExamplePrices()">Beispiel</button>
+        <div class="list" id="routeList" style="max-height: 160px;"></div>
+
+        <div class="divider"></div>
+
+        <label>Stops in der ausgewählten Route</label>
+        <div class="twoCol">
+          <button class="btn small" onclick="setPickModeStop()">Stop per Karte</button>
+          <button class="btn small" onclick="clearPickMode()">Stop-Modus aus</button>
         </div>
 
-        <div class="hint" id="fuelHint">
-          Du kannst den aktuellen Preis selbst recherchieren und hier eintragen.
+        <div class="row" style="margin-top:8px;">
+          <input id="stopAddr" class="field" placeholder="Adresse suchen (optional)" />
+          <button class="btn small" onclick="addStopByAddress()">+ Stop</button>
+        </div>
+
+        <div class="list" id="stopList" style="max-height: 200px;"></div>
+
+        <div class="meta" id="routeMeta">
+          <span><strong>Route:</strong> —</span>
+          <span><strong>Distanz:</strong> —</span>
+          <span><strong>Zeit:</strong> —</span>
+        </div>
+
+        <div class="hint">
+          Tipp: Stop anklicken → unten kannst du Name, Rubrik, Text & Bilder bearbeiten.
+        </div>
+
+        <div class="divider"></div>
+
+        <label>Stop-Details</label>
+        <div class="card" id="stopDetails">
+          <div style="color: rgba(0,0,0,0.55); font-size: 13px;">
+            Wähle einen Stop aus.
+          </div>
         </div>
       </div>
 
-      <div class="divider"></div>
+      <!-- ===== Rubriken ===== -->
+      <div id="viewCats" style="display:none;">
+        <label>Neue Rubrik hinzufügen</label>
+        <div class="row">
+          <input id="newCatName" class="field" placeholder="z.B. Fotospot, Kinder, Badestelle" />
+          <button class="btn primary" onclick="addCategory()">+ Rubrik</button>
+        </div>
 
-      <label>Gespeicherte Reisen</label>
-      <div class="tripList" id="tripList"></div>
+        <label style="margin-top:10px;">Rubriken</label>
+        <div class="list" id="catList"></div>
 
-      <div class="hint">
-        Start/Ziel per Adresse oder Karte wählen. Marker sind verschiebbar – Route berechnet sich neu.
+        <div class="hint">
+          Rubriken nutzt du bei Stops (Essen, Sehenswürdigkeit, Tankstelle, …).
+        </div>
       </div>
     </div>
   </div>
@@ -274,80 +383,563 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
   <script>
-    // ====== Storage Keys ======
-    const STORAGE_KEY = "urlaubsplaner_trips_v3";
+    // =========================
+    // Storage
+    // =========================
+    const STORAGE_KEY = "urlaubsplaner_v4";
+    function loadAll(){
+      try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || { trips: [] }; }
+      catch(e){ return { trips: [] }; }
+    }
+    function saveAll(state){
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    }
 
-    // ====== Map ======
-    const map = L.map('map').setView([49.773, 8.86], 7); // Nähe Hessen grob
+    // =========================
+    // Map setup
+    // =========================
+    const map = L.map('map').setView([49.8, 9.0], 7);
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
 
-    // ====== UI ======
-    const metaEl = document.getElementById("meta");
-    const tripListEl = document.getElementById("tripList");
-    const advEl = document.getElementById("advanced");
-    const advArrow = document.getElementById("advArrow");
+    let routeLine = null;
+    const markerLayer = L.layerGroup().addTo(map);
+
+    // =========================
+    // App State
+    // =========================
+    const app = {
+      data: loadAll(),
+      currentTripId: null,
+      currentDayId: null,
+      currentRouteId: null,
+      currentStopId: null,
+      pickMode: null, // "stop"
+      markersByStopId: new Map(), // stopId -> marker
+    };
+
+    // Default categories
+    function defaultCategories(){
+      return [
+        { id: uid(), name: "Essen" },
+        { id: uid(), name: "Sehenswürdigkeit" },
+        { id: uid(), name: "Tankstelle" },
+        { id: uid(), name: "Parken" },
+        { id: uid(), name: "Einkauf" },
+        { id: uid(), name: "Pause" }
+      ];
+    }
+
+    function uid(){
+      return Math.random().toString(36).slice(2, 10) + "_" + Date.now().toString(36);
+    }
+
+    function currentTrip(){
+      return app.data.trips.find(t => t.id === app.currentTripId) || null;
+    }
+    function currentDay(){
+      const t = currentTrip();
+      return t?.days?.find(d => d.id === app.currentDayId) || null;
+    }
+    function currentRoute(){
+      const d = currentDay();
+      return d?.routes?.find(r => r.id === app.currentRouteId) || null;
+    }
+    function currentStop(){
+      const r = currentRoute();
+      return r?.stops?.find(s => s.id === app.currentStopId) || null;
+    }
+
+    // =========================
+    // UI refs
+    // =========================
+    const tabTrip = document.getElementById("tabTrip");
+    const tabDays = document.getElementById("tabDays");
+    const tabPlan = document.getElementById("tabPlan");
+    const tabCats = document.getElementById("tabCats");
+
+    const viewTrip = document.getElementById("viewTrip");
+    const viewDays = document.getElementById("viewDays");
+    const viewPlan = document.getElementById("viewPlan");
+    const viewCats = document.getElementById("viewCats");
 
     const tripNameEl = document.getElementById("tripName");
     const dateFromEl = document.getElementById("dateFrom");
     const dateToEl = document.getElementById("dateTo");
-    const startAddrEl = document.getElementById("startAddr");
-    const endAddrEl = document.getElementById("endAddr");
+    const tripListEl = document.getElementById("tripList");
 
-    const fuelTypeEl = document.getElementById("fuelType");
-    const consumptionEl = document.getElementById("consumption");
-    const fuelPriceEl = document.getElementById("fuelPrice");
-    const fuelHintEl = document.getElementById("fuelHint");
+    const currentTripLabel = document.getElementById("currentTripLabel");
+    const currentTripRange = document.getElementById("currentTripRange");
+    const dayListEl = document.getElementById("dayList");
 
-    // ====== State ======
-    let pickMode = null; // "start" | "stop" | "ziel"
-    let startMarker = null;
-    let endMarker = null;
-    let stopMarkers = [];
-    let routeLine = null;
+    const planHeader = document.getElementById("planHeader");
+    const planSub = document.getElementById("planSub");
+    const newRouteNameEl = document.getElementById("newRouteName");
+    const routeListEl = document.getElementById("routeList");
+    const stopListEl = document.getElementById("stopList");
+    const stopAddrEl = document.getElementById("stopAddr");
+    const routeMetaEl = document.getElementById("routeMeta");
+    const stopDetailsEl = document.getElementById("stopDetails");
 
-    let routeKm = 0;
-    let routeMin = 0;
+    const newCatNameEl = document.getElementById("newCatName");
+    const catListEl = document.getElementById("catList");
 
-    // ====== Helpers ======
-    function setMeta(dist, time, fuel, total){
-      metaEl.innerHTML = `
-        <span><strong>Distanz:</strong> ${dist}</span>
-        <span><strong>Zeit:</strong> ${time}</span>
-        <span><strong>Sprit:</strong> ${fuel}</span>
-        <span><strong>Summe:</strong> ${total}</span>
+    // =========================
+    // Tabs
+    // =========================
+    function switchTab(name){
+      const all = [tabTrip, tabDays, tabPlan, tabCats];
+      all.forEach(t => t.classList.remove("active"));
+      viewTrip.style.display = "none";
+      viewDays.style.display = "none";
+      viewPlan.style.display = "none";
+      viewCats.style.display = "none";
+
+      if(name === "trip"){ tabTrip.classList.add("active"); viewTrip.style.display="block"; }
+      if(name === "days"){ tabDays.classList.add("active"); viewDays.style.display="block"; }
+      if(name === "plan"){ tabPlan.classList.add("active"); viewPlan.style.display="block"; }
+      if(name === "cats"){ tabCats.classList.add("active"); viewCats.style.display="block"; }
+    }
+    window.switchTab = switchTab;
+
+    // =========================
+    // Trip CRUD
+    // =========================
+    function newTrip(){
+      app.currentTripId = null;
+      app.currentDayId = null;
+      app.currentRouteId = null;
+      app.currentStopId = null;
+      tripNameEl.value = "";
+      dateFromEl.value = "";
+      dateToEl.value = "";
+      clearMapAll();
+      renderAll();
+      switchTab("trip");
+    }
+    window.newTrip = newTrip;
+
+    function saveTrip(){
+      const name = (tripNameEl.value || "").trim();
+      const dateFrom = dateFromEl.value || "";
+      const dateTo = dateToEl.value || "";
+      if(!name){
+        alert("Bitte Reise-Name eingeben.");
+        return;
+      }
+      if(!dateFrom || !dateTo){
+        alert("Bitte Datum von/bis auswählen.");
+        return;
+      }
+
+      let t = currentTrip();
+      if(!t){
+        t = {
+          id: uid(),
+          name,
+          dateFrom,
+          dateTo,
+          categories: defaultCategories(),
+          days: []
+        };
+        app.data.trips.unshift(t);
+        app.currentTripId = t.id;
+      }else{
+        t.name = name;
+        t.dateFrom = dateFrom;
+        t.dateTo = dateTo;
+        if(!Array.isArray(t.categories) || t.categories.length === 0) t.categories = defaultCategories();
+        if(!Array.isArray(t.days)) t.days = [];
+      }
+
+      saveAll(app.data);
+      renderAll();
+      alert("Reise gespeichert.");
+    }
+    window.saveTrip = saveTrip;
+
+    function deleteTrip(tripId){
+      app.data.trips = app.data.trips.filter(t => t.id !== tripId);
+      if(app.currentTripId === tripId) newTrip();
+      saveAll(app.data);
+      renderAll();
+    }
+
+    function loadTrip(tripId){
+      const t = app.data.trips.find(x => x.id === tripId);
+      if(!t) return;
+      app.currentTripId = t.id;
+      app.currentDayId = t.days?.[0]?.id || null;
+      app.currentRouteId = t.days?.[0]?.routes?.[0]?.id || null;
+      app.currentStopId = null;
+
+      tripNameEl.value = t.name || "";
+      dateFromEl.value = t.dateFrom || "";
+      dateToEl.value = t.dateTo || "";
+
+      clearMapAll();
+      renderAll();
+      switchTab("days");
+    }
+
+    // =========================
+    // Days generation
+    // =========================
+    function dateToISO(d){
+      const y = d.getFullYear();
+      const m = String(d.getMonth()+1).padStart(2,"0");
+      const dd = String(d.getDate()).padStart(2,"0");
+      return `${y}-${m}-${dd}`;
+    }
+
+    function generateDays(){
+      const name = (tripNameEl.value || "").trim();
+      if(!name){
+        alert("Bitte erst Reise-Name eingeben.");
+        return;
+      }
+      saveTrip(); // ensures trip exists
+
+      const t = currentTrip();
+      const from = new Date(t.dateFrom + "T00:00:00");
+      const to = new Date(t.dateTo + "T00:00:00");
+      if(isNaN(from.getTime()) || isNaN(to.getTime()) || from > to){
+        alert("Datum stimmt nicht. Bitte prüfen.");
+        return;
+      }
+
+      // Keep existing days but ensure all in range exist
+      const existingByDate = new Map((t.days||[]).map(d => [d.date, d]));
+      const days = [];
+      let cur = new Date(from);
+      let idx = 1;
+
+      while(cur <= to){
+        const iso = dateToISO(cur);
+        const ex = existingByDate.get(iso);
+        if(ex){
+          ex.dayIndex = idx;
+          if(!Array.isArray(ex.routes)) ex.routes = [];
+          days.push(ex);
+        }else{
+          days.push({
+            id: uid(),
+            date: iso,
+            dayIndex: idx,
+            routes: []
+          });
+        }
+        cur.setDate(cur.getDate()+1);
+        idx++;
+      }
+
+      t.days = days;
+
+      // auto-select first day
+      app.currentDayId = t.days[0]?.id || null;
+      app.currentRouteId = t.days[0]?.routes?.[0]?.id || null;
+      app.currentStopId = null;
+
+      saveAll(app.data);
+      renderAll();
+      switchTab("days");
+    }
+    window.generateDays = generateDays;
+
+    // =========================
+    // Day / Route / Stop operations
+    // =========================
+    function selectDay(dayId){
+      app.currentDayId = dayId;
+      const d = currentDay();
+      app.currentRouteId = d?.routes?.[0]?.id || null;
+      app.currentStopId = null;
+      clearMapRouteOnly();
+      renderAll();
+      switchTab("plan");
+    }
+
+    function addRoute(){
+      const d = currentDay();
+      const t = currentTrip();
+      if(!t || !d){
+        alert("Bitte zuerst eine Reise laden und einen Tag auswählen.");
+        return;
+      }
+      const nm = (newRouteNameEl.value || "").trim() || "Route";
+      const r = { id: uid(), name: nm, stops: [] };
+      d.routes.unshift(r);
+      newRouteNameEl.value = "";
+      app.currentRouteId = r.id;
+      app.currentStopId = null;
+
+      saveAll(app.data);
+      clearMapRouteOnly();
+      renderAll();
+    }
+    window.addRoute = addRoute;
+
+    function deleteRoute(routeId){
+      const d = currentDay();
+      if(!d) return;
+      d.routes = d.routes.filter(r => r.id !== routeId);
+      if(app.currentRouteId === routeId){
+        app.currentRouteId = d.routes?.[0]?.id || null;
+        app.currentStopId = null;
+      }
+      saveAll(app.data);
+      clearMapRouteOnly();
+      renderAll();
+    }
+
+    function selectRoute(routeId){
+      app.currentRouteId = routeId;
+      app.currentStopId = null;
+      clearMapRouteOnly();
+      renderAll();
+      drawSelectedRoute();
+    }
+
+    function setPickModeStop(){
+      if(!currentRoute()){
+        alert("Bitte zuerst eine Route auswählen oder erstellen.");
+        return;
+      }
+      app.pickMode = "stop";
+      alert("Stop-Modus aktiv: Tippe jetzt auf die Karte, um einen Stop zur ausgewählten Route hinzuzufügen.");
+    }
+    window.setPickModeStop = setPickModeStop;
+
+    function clearPickMode(){
+      app.pickMode = null;
+      // no alert (clean)
+    }
+    window.clearPickMode = clearPickMode;
+
+    async function addStopByAddress(){
+      const r = currentRoute();
+      if(!r){
+        alert("Bitte zuerst eine Route auswählen.");
+        return;
+      }
+      const q = (stopAddrEl.value || "").trim();
+      if(!q){
+        alert("Bitte Adresse eingeben.");
+        return;
+      }
+      const g = await geocodeOne(q);
+      if(!g){
+        alert("Adresse nicht gefunden.");
+        return;
+      }
+      const s = makeStop({
+        name: q,
+        lat: g.lat,
+        lon: g.lon
+      });
+      r.stops.push(s);
+      stopAddrEl.value = "";
+      app.currentStopId = s.id;
+
+      saveAll(app.data);
+      renderAll();
+      drawSelectedRoute();
+      focusStopOnMap(s.id);
+    }
+    window.addStopByAddress = addStopByAddress;
+
+    function makeStop({name, lat, lon}){
+      const t = currentTrip();
+      const catId = t?.categories?.[0]?.id || null;
+      return {
+        id: uid(),
+        name: name || "Stop",
+        categoryId: catId,
+        note: "",
+        lat, lon,
+        images: [] // base64
+      };
+    }
+
+    function selectStop(stopId){
+      app.currentStopId = stopId;
+      renderStopDetails();
+      focusStopOnMap(stopId);
+    }
+
+    function deleteStop(stopId){
+      const r = currentRoute();
+      if(!r) return;
+      r.stops = r.stops.filter(s => s.id !== stopId);
+      if(app.currentStopId === stopId) app.currentStopId = null;
+
+      saveAll(app.data);
+
+      // remove marker if exists
+      const m = app.markersByStopId.get(stopId);
+      if(m){
+        markerLayer.removeLayer(m);
+        app.markersByStopId.delete(stopId);
+      }
+
+      clearMapRouteOnly();
+      renderAll();
+      drawSelectedRoute();
+    }
+
+    // =========================
+    // Categories
+    // =========================
+    function addCategory(){
+      const t = currentTrip();
+      if(!t){
+        alert("Bitte zuerst eine Reise laden.");
+        return;
+      }
+      const nm = (newCatNameEl.value || "").trim();
+      if(!nm){
+        alert("Bitte Rubrik-Name eingeben.");
+        return;
+      }
+      t.categories.push({ id: uid(), name: nm });
+      newCatNameEl.value = "";
+      saveAll(app.data);
+      renderAll();
+    }
+    window.addCategory = addCategory;
+
+    function deleteCategory(catId){
+      const t = currentTrip();
+      if(!t) return;
+      // prevent deleting if used
+      const used = (t.days||[]).some(d => (d.routes||[]).some(r => (r.stops||[]).some(s => s.categoryId === catId)));
+      if(used){
+        alert("Diese Rubrik wird noch bei Stops verwendet. Ändere erst die Stops, dann löschen.");
+        return;
+      }
+      t.categories = t.categories.filter(c => c.id !== catId);
+      saveAll(app.data);
+      renderAll();
+    }
+
+    function catName(catId){
+      const t = currentTrip();
+      return t?.categories?.find(c => c.id === catId)?.name || "Ohne";
+    }
+
+    // =========================
+    // Map interactions
+    // =========================
+    map.on("click", async (e) => {
+      if(app.pickMode !== "stop") return;
+
+      const r = currentRoute();
+      if(!r) return;
+
+      const s = makeStop({
+        name: "Neuer Stop",
+        lat: e.latlng.lat,
+        lon: e.latlng.lng
+      });
+      r.stops.push(s);
+      app.currentStopId = s.id;
+
+      saveAll(app.data);
+      renderAll();
+      drawSelectedRoute();
+      focusStopOnMap(s.id);
+    });
+
+    function clearMapAll(){
+      if(routeLine){ map.removeLayer(routeLine); routeLine = null; }
+      markerLayer.clearLayers();
+      app.markersByStopId.clear();
+    }
+
+    function clearMapRouteOnly(){
+      if(routeLine){ map.removeLayer(routeLine); routeLine = null; }
+      markerLayer.clearLayers();
+      app.markersByStopId.clear();
+      // markers are redrawn for selected route in drawSelectedRoute()
+    }
+
+    function focusStopOnMap(stopId){
+      const m = app.markersByStopId.get(stopId);
+      if(m){
+        map.setView(m.getLatLng(), Math.max(map.getZoom(), 12));
+        m.openPopup();
+      }
+    }
+
+    // =========================
+    // Routing draw
+    // =========================
+    async function drawSelectedRoute(){
+      const r = currentRoute();
+      if(!r){
+        setRouteMeta("-", "-", "-");
+        clearMapRouteOnly();
+        return;
+      }
+
+      // clear existing
+      clearMapRouteOnly();
+
+      // markers
+      const t = currentTrip();
+      (r.stops || []).forEach((s, idx) => {
+        const tag = catName(s.categoryId);
+        const m = L.marker([s.lat, s.lon], { draggable: true }).addTo(markerLayer);
+        app.markersByStopId.set(s.id, m);
+
+        m.bindPopup(`<b>${escapeHtml(s.name || ("Stop " + (idx+1)))}</b><br><span style="opacity:.7">${escapeHtml(tag)}</span>`);
+
+        m.on("click", () => selectStop(s.id));
+
+        // draggable: update coords and reroute
+        m.on("dragend", () => {
+          const p = m.getLatLng();
+          s.lat = p.lat;
+          s.lon = p.lng;
+          saveAll(app.data);
+          renderAll();
+          drawSelectedRoute();
+        });
+      });
+
+      if((r.stops || []).length < 2){
+        setRouteMeta(r.name, "—", "—");
+        return;
+      }
+
+      const pts = r.stops.map(s => ({ lat: s.lat, lon: s.lon }));
+      const route = await routeOSRM(pts);
+      if(!route){
+        setRouteMeta(r.name, "—", "—");
+        return;
+      }
+
+      routeLine = L.geoJSON(route.geometry, { style: { weight: 6, opacity: 0.95 } }).addTo(map);
+      map.fitBounds(routeLine.getBounds().pad(0.15));
+
+      const km = (route.distance/1000).toFixed(1) + " km";
+      const min = Math.round(route.duration/60) + " min";
+      setRouteMeta(r.name, km, min);
+    }
+
+    function setRouteMeta(name, dist, time){
+      routeMetaEl.innerHTML = `
+        <span><strong>Route:</strong> ${escapeHtml(name || "—")}</span>
+        <span><strong>Distanz:</strong> ${escapeHtml(dist || "—")}</span>
+        <span><strong>Zeit:</strong> ${escapeHtml(time || "—")}</span>
       `;
     }
 
-    function toggleAdvanced(){
-      const show = advEl.style.display !== "block";
-      advEl.style.display = show ? "block" : "none";
-      advArrow.textContent = show ? "▴" : "▾";
-    }
-
-    function setMapPickMode(m){
-      pickMode = m;
-    }
-
-    function createDraggableMarker(latlng, label, onMoved){
-      const m = L.marker(latlng, { draggable:true }).addTo(map).bindPopup(label);
-      m.on("dragend", async () => {
-        const p = m.getLatLng();
-        try{
-          const addr = await reverseGeocode(p.lat, p.lng);
-          onMoved(addr);
-        }catch(e){
-          onMoved(`${p.lat.toFixed(6)}, ${p.lng.toFixed(6)}`);
-        }
-        buildRoute(); // Route + Kosten automatisch aktualisieren
-      });
-      return m;
-    }
-
-    async function reverseGeocode(lat, lon){
-      const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`;
+    async function routeOSRM(points){
+      const coordStr = points.map(p => `${p.lon},${p.lat}`).join(";");
+      const url = `https://router.project-osrm.org/route/v1/driving/${coordStr}?overview=full&geometries=geojson&steps=false`;
       const res = await fetch(url, { headers: { "Accept":"application/json" }});
       const data = await res.json();
-      return data.display_name || `${lat.toFixed(6)}, ${lon.toFixed(6)}`;
+      return data.routes && data.routes[0] ? data.routes[0] : null;
     }
 
     async function geocodeOne(q){
@@ -361,290 +953,6 @@
       return { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon) };
     }
 
-    async function routeOSRM(points){
-      const coordStr = points.map(p => `${p.lon},${p.lat}`).join(";");
-      const url = `https://router.project-osrm.org/route/v1/driving/${coordStr}?overview=full&geometries=geojson&steps=false`;
-      const res = await fetch(url, { headers: { "Accept":"application/json" }});
-      const data = await res.json();
-      return data.routes && data.routes[0] ? data.routes[0] : null;
-    }
-
-    function money(n){
-      if(!isFinite(n)) return "—";
-      return n.toFixed(2) + " €";
-    }
-
-    function applyFuelDefaults(){
-      // nur bequeme Defaults (kannst du ändern)
-      if(fuelTypeEl.value === "diesel"){
-        if(!consumptionEl.value) consumptionEl.value = "6.5";
-      }else{
-        if(!consumptionEl.value) consumptionEl.value = "7.5";
-      }
-      if(!fuelPriceEl.value) fuelHintEl.textContent = "Trage den aktuellen Preis ein (€/l).";
-    }
-
-    function fillExamplePrices(){
-      // nur Beispielwerte, damit du siehst wie es rechnet
-      if(fuelTypeEl.value === "diesel") fuelPriceEl.value = "1.799";
-      else fuelPriceEl.value = "1.899";
-      recalcCosts();
-    }
-
-    function recalcCosts(){
-      if(routeKm <= 0){
-        setMeta("—","—","—","—");
-        return;
-      }
-
-      const cons = parseFloat(consumptionEl.value);
-      const price = parseFloat(fuelPriceEl.value);
-
-      const liters = isFinite(cons) ? (routeKm * cons / 100) : NaN;
-      const fuelCost = (isFinite(liters) && isFinite(price)) ? (liters * price) : NaN;
-
-      const fuelText =
-        (isFinite(liters) ? liters.toFixed(1) + " l" : "—") +
-        " / " +
-        (isFinite(fuelCost) ? money(fuelCost) : "—");
-
-      // Ohne Gebühren ist Summe = Sprit (oder —)
-      const total = isFinite(fuelCost) ? fuelCost : NaN;
-
-      setMeta(
-        routeKm.toFixed(1) + " km",
-        Math.round(routeMin) + " min",
-        fuelText,
-        isFinite(total) ? money(total) : "—"
-      );
-    }
-
-    // ====== Map click pick ======
-    map.on("click", async (e) => {
-      if(!pickMode) return;
-
-      const addr = await reverseGeocode(e.latlng.lat, e.latlng.lng);
-
-      if(pickMode === "start"){
-        startAddrEl.value = addr;
-        if(startMarker) map.removeLayer(startMarker);
-        startMarker = createDraggableMarker(e.latlng, "Start", a => startAddrEl.value = a);
-        startMarker.openPopup();
-      }
-
-      if(pickMode === "ziel"){
-        endAddrEl.value = addr;
-        if(endMarker) map.removeLayer(endMarker);
-        endMarker = createDraggableMarker(e.latlng, "Ziel", a => endAddrEl.value = a);
-        endMarker.openPopup();
-      }
-
-      if(pickMode === "stop"){
-        const m = createDraggableMarker(e.latlng, "Zwischenstopp", () => {});
-        stopMarkers.push(m);
-        m.openPopup();
-      }
-
-      pickMode = null;
-      buildRoute();
-    });
-
-    // ====== Build route day 1 ======
-    async function buildRoute(){
-      let points = [];
-
-      // 1) Wenn Marker da sind: direkt Marker verwenden
-      if(startMarker && endMarker){
-        points.push({ lat: startMarker.getLatLng().lat, lon: startMarker.getLatLng().lng });
-        for(const sm of stopMarkers){
-          const ll = sm.getLatLng();
-          points.push({ lat: ll.lat, lon: ll.lng });
-        }
-        points.push({ lat: endMarker.getLatLng().lat, lon: endMarker.getLatLng().lng });
-      } else {
-        // 2) Sonst: aus Start/Ziel Text geocoden und Marker erstellen
-        const startText = startAddrEl.value.trim();
-        const endText = endAddrEl.value.trim();
-        if(!startText || !endText){
-          routeKm = 0; routeMin = 0;
-          setMeta("—","—","—","—");
-          return;
-        }
-
-        const s = await geocodeOne(startText);
-        const z = await geocodeOne(endText);
-        if(!s || !z){
-          routeKm = 0; routeMin = 0;
-          setMeta("—","—","—","—");
-          return;
-        }
-
-        points = [s, z];
-
-        // Marker synchronisieren (damit Drag danach klappt)
-        if(startMarker) map.removeLayer(startMarker);
-        if(endMarker) map.removeLayer(endMarker);
-        stopMarkers.forEach(m => map.removeLayer(m));
-        stopMarkers = [];
-
-        startMarker = createDraggableMarker([s.lat, s.lon], "Start", a => startAddrEl.value = a);
-        endMarker = createDraggableMarker([z.lat, z.lon], "Ziel", a => endAddrEl.value = a);
-      }
-
-      const r = await routeOSRM(points);
-      if(!r){
-        routeKm = 0; routeMin = 0;
-        setMeta("—","—","—","—");
-        return;
-      }
-
-      if(routeLine) map.removeLayer(routeLine);
-      routeLine = L.geoJSON(r.geometry, { style: { weight: 6, opacity: 0.95 } }).addTo(map);
-      map.fitBounds(routeLine.getBounds().pad(0.15));
-
-      routeKm = r.distance / 1000;
-      routeMin = r.duration / 60;
-
-      recalcCosts();
-    }
-
-    // ====== Trips storage ======
-    function loadTrips(){
-      try{ return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
-      catch(e){ return []; }
-    }
-    function saveTrips(trips){
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(trips));
-    }
-
-    function tripData(){
-      return {
-        name: tripNameEl.value.trim(),
-        dateFrom: dateFromEl.value || "",
-        dateTo: dateToEl.value || "",
-        startAddr: startAddrEl.value || "",
-        endAddr: endAddrEl.value || "",
-        start: startMarker ? startMarker.getLatLng() : null,
-        end: endMarker ? endMarker.getLatLng() : null,
-        stops: stopMarkers.map(m => m.getLatLng()),
-        fuelType: fuelTypeEl.value,
-        consumption: parseFloat(consumptionEl.value) || 0,
-        fuelPrice: parseFloat(fuelPriceEl.value) || 0,
-        updatedAt: Date.now()
-      };
-    }
-
-    function applyTrip(t){
-      tripNameEl.value = t.name || "";
-      dateFromEl.value = t.dateFrom || "";
-      dateToEl.value = t.dateTo || "";
-      startAddrEl.value = t.startAddr || "";
-      endAddrEl.value = t.endAddr || "";
-
-      fuelTypeEl.value = t.fuelType || "diesel";
-      consumptionEl.value = (t.consumption ?? 6.5);
-      fuelPriceEl.value = (t.fuelPrice ?? "");
-
-      // map clear
-      if(startMarker) map.removeLayer(startMarker);
-      if(endMarker) map.removeLayer(endMarker);
-      stopMarkers.forEach(m => map.removeLayer(m));
-      stopMarkers = [];
-      if(routeLine) map.removeLayer(routeLine);
-      routeLine = null;
-
-      startMarker = null;
-      endMarker = null;
-
-      if(t.start){
-        startMarker = createDraggableMarker(t.start, "Start", a => startAddrEl.value = a);
-      }
-      if(t.end){
-        endMarker = createDraggableMarker(t.end, "Ziel", a => endAddrEl.value = a);
-      }
-      (t.stops || []).forEach(s => {
-        const m = createDraggableMarker(s, "Zwischenstopp", () => {});
-        stopMarkers.push(m);
-      });
-
-      buildRoute();
-    }
-
-    function saveTrip(){
-      const data = tripData();
-      if(!data.name){
-        alert("Bitte Reisename eingeben.");
-        return;
-      }
-      if(!startMarker || !endMarker){
-        alert("Bitte Start & Ziel setzen (Adresse oder Karte), dann speichern.");
-        return;
-      }
-
-      const trips = loadTrips();
-      const idx = trips.findIndex(x => (x.name || "").toLowerCase() === data.name.toLowerCase());
-      if(idx >= 0) trips[idx] = data;
-      else trips.unshift(data);
-
-      saveTrips(trips);
-      renderTripList();
-      alert("Reise gespeichert.");
-    }
-
-    function deleteTrip(name){
-      const trips = loadTrips().filter(t => t.name !== name);
-      saveTrips(trips);
-      renderTripList();
-    }
-
-    function loadTrip(name){
-      const trips = loadTrips();
-      const t = trips.find(x => x.name === name);
-      if(!t) return;
-      applyTrip(t);
-    }
-
-    function renderTripList(){
-      const trips = loadTrips();
-      tripListEl.innerHTML = "";
-      if(!trips.length){
-        tripListEl.innerHTML = `<div style="padding:8px; color:rgba(0,0,0,0.55); font-size:13px;">Noch keine Reisen gespeichert.</div>`;
-        return;
-      }
-
-      for(const t of trips){
-        const item = document.createElement("div");
-        item.className = "tripItem";
-
-        const left = document.createElement("div");
-        left.style.minWidth = "0";
-        left.innerHTML = `
-          <div class="tripName">${escapeHtml(t.name || "")}</div>
-          <div class="tripSub">${escapeHtml(formatRange(t.dateFrom, t.dateTo))}</div>
-        `;
-
-        const btns = document.createElement("div");
-        btns.className = "tripBtns";
-
-        const b1 = document.createElement("button");
-        b1.className = "pillBtn pillLoad";
-        b1.textContent = "Laden";
-        b1.onclick = () => loadTrip(t.name);
-
-        const b2 = document.createElement("button");
-        b2.className = "pillBtn pillDel";
-        b2.textContent = "Löschen";
-        b2.onclick = () => deleteTrip(t.name);
-
-        btns.appendChild(b1);
-        btns.appendChild(b2);
-
-        item.appendChild(left);
-        item.appendChild(btns);
-        tripListEl.appendChild(item);
-      }
-    }
-
     function escapeHtml(str){
       return String(str)
         .replaceAll("&","&amp;")
@@ -654,43 +962,278 @@
         .replaceAll("'","&#039;");
     }
 
-    function formatRange(a,b){
-      if(!a && !b) return "—";
-      if(a && !b) return `ab ${a}`;
-      if(!a && b) return `bis ${b}`;
-      return `${a} – ${b}`;
+    // =========================
+    // Stop details (name/category/note/images)
+    // =========================
+    function renderStopDetails(){
+      const s = currentStop();
+      const t = currentTrip();
+      if(!s || !t){
+        stopDetailsEl.innerHTML = `<div style="color: rgba(0,0,0,0.55); font-size: 13px;">Wähle einen Stop aus.</div>`;
+        return;
+      }
+
+      const catOptions = (t.categories||[]).map(c => {
+        const sel = c.id === s.categoryId ? "selected" : "";
+        return `<option value="${c.id}" ${sel}>${escapeHtml(c.name)}</option>`;
+      }).join("");
+
+      const imgs = (s.images||[]).map((src) => `<img src="${src}" alt="Bild">`).join("");
+
+      stopDetailsEl.innerHTML = `
+        <label style="margin-top:0;">Name</label>
+        <input class="field" id="sdName" value="${escapeHtml(s.name||"")}" />
+
+        <label>Rubrik</label>
+        <select class="field" id="sdCat">${catOptions}</select>
+
+        <label>Text / Notiz</label>
+        <textarea class="field" id="sdNote" rows="4" style="resize:vertical;">${escapeHtml(s.note||"")}</textarea>
+
+        <div class="row" style="margin-top:10px;">
+          <button class="btn primary" id="sdSave">Speichern</button>
+          <button class="btn danger" id="sdDelete">Stop löschen</button>
+        </div>
+
+        <div class="divider"></div>
+
+        <label>Bilder (lokal)</label>
+        <input class="field" id="sdImg" type="file" accept="image/*" />
+        <div class="hint">Bilder werden lokal gespeichert (begrenzter Speicher).</div>
+        <div class="imgGrid" id="sdImgGrid">${imgs}</div>
+      `;
+
+      document.getElementById("sdSave").onclick = () => {
+        const nm = document.getElementById("sdName").value.trim() || "Stop";
+        const cat = document.getElementById("sdCat").value;
+        const note = document.getElementById("sdNote").value;
+
+        s.name = nm;
+        s.categoryId = cat;
+        s.note = note;
+
+        saveAll(app.data);
+        renderAll();
+        drawSelectedRoute();
+        focusStopOnMap(s.id);
+      };
+
+      document.getElementById("sdDelete").onclick = () => {
+        if(confirm("Stop wirklich löschen?")) deleteStop(s.id);
+      };
+
+      document.getElementById("sdImg").onchange = async (ev) => {
+        const file = ev.target.files?.[0];
+        if(!file) return;
+
+        // Convert to base64
+        const base64 = await fileToBase64(file);
+        if(!Array.isArray(s.images)) s.images = [];
+        s.images.unshift(base64);
+
+        saveAll(app.data);
+        renderStopDetails(); // refresh gallery
+      };
     }
 
-    function newTrip(){
-      tripNameEl.value = "";
-      dateFromEl.value = "";
-      dateToEl.value = "";
-      startAddrEl.value = "";
-      endAddrEl.value = "";
-      fuelTypeEl.value = "diesel";
-      consumptionEl.value = "6.5";
-      fuelPriceEl.value = "";
-
-      if(startMarker) map.removeLayer(startMarker);
-      if(endMarker) map.removeLayer(endMarker);
-      stopMarkers.forEach(m => map.removeLayer(m));
-      stopMarkers = [];
-      if(routeLine) map.removeLayer(routeLine);
-      routeLine = null;
-
-      startMarker = null;
-      endMarker = null;
-
-      routeKm = 0;
-      routeMin = 0;
-      setMeta("—","—","—","—");
-      fuelHintEl.textContent = "Du kannst den aktuellen Preis selbst recherchieren und hier eintragen.";
+    function fileToBase64(file){
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
     }
 
-    // init
-    setMeta("—","—","—","—");
-    applyFuelDefaults();
-    renderTripList();
+    // =========================
+    // Render
+    // =========================
+    function renderTrips(){
+      tripListEl.innerHTML = "";
+      if(!app.data.trips.length){
+        tripListEl.innerHTML = `<div style="padding:8px; color:rgba(0,0,0,0.55); font-size:13px;">Noch keine Reisen gespeichert.</div>`;
+        return;
+      }
+      for(const t of app.data.trips){
+        const el = document.createElement("div");
+        el.className = "item";
+        el.innerHTML = `
+          <div class="itemLeft">
+            <div class="itemTitle">${escapeHtml(t.name || "")}</div>
+            <div class="itemSub">${escapeHtml(t.dateFrom || "—")} – ${escapeHtml(t.dateTo || "—")}</div>
+          </div>
+          <div class="itemBtns">
+            <button class="pillBtn pillLoad">Laden</button>
+            <button class="pillBtn pillDel">Löschen</button>
+          </div>
+        `;
+        el.querySelector(".pillLoad").onclick = () => loadTrip(t.id);
+        el.querySelector(".pillDel").onclick = () => {
+          if(confirm("Reise wirklich löschen?")) deleteTrip(t.id);
+        };
+        tripListEl.appendChild(el);
+      }
+    }
+
+    function renderDays(){
+      const t = currentTrip();
+      currentTripLabel.textContent = t ? t.name : "Keine Reise geladen";
+      currentTripRange.textContent = t ? `${t.dateFrom || "—"} – ${t.dateTo || "—"}` : "—";
+
+      dayListEl.innerHTML = "";
+      if(!t || !t.days || t.days.length === 0){
+        dayListEl.innerHTML = `<div style="padding:8px; color:rgba(0,0,0,0.55); font-size:13px;">Keine Tage vorhanden. Gehe zu „Reise“ → „Tage erzeugen“.</div>`;
+        return;
+      }
+
+      for(const d of t.days){
+        const el = document.createElement("div");
+        el.className = "item";
+        const active = (d.id === app.currentDayId);
+        el.style.borderColor = active ? "rgba(10,132,255,0.35)" : "rgba(0,0,0,0.07)";
+        el.style.background = active ? "rgba(10,132,255,0.08)" : "rgba(255,255,255,0.9)";
+        const routesCount = (d.routes||[]).length;
+
+        el.innerHTML = `
+          <div class="itemLeft">
+            <div class="itemTitle">Tag ${d.dayIndex}: ${escapeHtml(d.date)}</div>
+            <div class="itemSub">${routesCount} Route(n)</div>
+          </div>
+          <div class="itemBtns">
+            <button class="pillBtn pillLoad">Wählen</button>
+          </div>
+        `;
+        el.querySelector(".pillLoad").onclick = () => selectDay(d.id);
+        dayListEl.appendChild(el);
+      }
+    }
+
+    function renderPlan(){
+      const t = currentTrip();
+      const d = currentDay();
+      if(!t || !d){
+        planHeader.textContent = "Kein Tag gewählt";
+        planSub.textContent = "—";
+        routeListEl.innerHTML = "";
+        stopListEl.innerHTML = "";
+        stopDetailsEl.innerHTML = `<div style="color: rgba(0,0,0,0.55); font-size: 13px;">Wähle einen Stop aus.</div>`;
+        setRouteMeta("—","—","—");
+        return;
+      }
+
+      planHeader.textContent = `${t.name} – Tag ${d.dayIndex}`;
+      planSub.textContent = d.date;
+
+      // Routes list
+      routeListEl.innerHTML = "";
+      if(!d.routes || d.routes.length === 0){
+        routeListEl.innerHTML = `<div style="padding:8px; color:rgba(0,0,0,0.55); font-size:13px;">Noch keine Route. Oben „+ Route“.</div>`;
+      }else{
+        for(const r of d.routes){
+          const active = (r.id === app.currentRouteId);
+          const el = document.createElement("div");
+          el.className = "item";
+          el.style.borderColor = active ? "rgba(10,132,255,0.35)" : "rgba(0,0,0,0.07)";
+          el.style.background = active ? "rgba(10,132,255,0.08)" : "rgba(255,255,255,0.9)";
+          el.innerHTML = `
+            <div class="itemLeft">
+              <div class="itemTitle">${escapeHtml(r.name || "Route")}</div>
+              <div class="itemSub">${(r.stops||[]).length} Stop(s)</div>
+            </div>
+            <div class="itemBtns">
+              <button class="pillBtn pillLoad">Öffnen</button>
+              <button class="pillBtn pillDel">X</button>
+            </div>
+          `;
+          el.querySelector(".pillLoad").onclick = () => selectRoute(r.id);
+          el.querySelector(".pillDel").onclick = () => { if(confirm("Route löschen?")) deleteRoute(r.id); };
+          routeListEl.appendChild(el);
+        }
+      }
+
+      // Stops list
+      const r = currentRoute();
+      stopListEl.innerHTML = "";
+      if(!r){
+        stopListEl.innerHTML = `<div style="padding:8px; color:rgba(0,0,0,0.55); font-size:13px;">Bitte Route auswählen.</div>`;
+        setRouteMeta("—","—","—");
+        stopDetailsEl.innerHTML = `<div style="color: rgba(0,0,0,0.55); font-size: 13px;">Wähle einen Stop aus.</div>`;
+        return;
+      }
+
+      if(!r.stops || r.stops.length === 0){
+        stopListEl.innerHTML = `<div style="padding:8px; color:rgba(0,0,0,0.55); font-size:13px;">Noch keine Stops. Nutze „Stop per Karte“ oder Adresse.</div>`;
+        setRouteMeta(r.name, "—", "—");
+      }else{
+        for(const s of r.stops){
+          const active = (s.id === app.currentStopId);
+          const el = document.createElement("div");
+          el.className = "item";
+          el.style.borderColor = active ? "rgba(10,132,255,0.35)" : "rgba(0,0,0,0.07)";
+          el.style.background = active ? "rgba(10,132,255,0.08)" : "rgba(255,255,255,0.9)";
+          el.innerHTML = `
+            <div class="itemLeft" style="min-width:0;">
+              <div class="stopRow">
+                <div class="stopName">${escapeHtml(s.name || "Stop")}</div>
+                <div class="stopTag">${escapeHtml(catName(s.categoryId))}</div>
+              </div>
+              <div class="itemSub">${(s.note||"").trim() ? "Notiz vorhanden" : "—"}</div>
+            </div>
+            <div class="itemBtns">
+              <button class="pillBtn pillLoad">Edit</button>
+              <button class="pillBtn pillDel">X</button>
+            </div>
+          `;
+          el.querySelector(".pillLoad").onclick = () => selectStop(s.id);
+          el.querySelector(".pillDel").onclick = () => { if(confirm("Stop löschen?")) deleteStop(s.id); };
+          stopListEl.appendChild(el);
+        }
+      }
+
+      renderStopDetails();
+    }
+
+    function renderCats(){
+      const t = currentTrip();
+      catListEl.innerHTML = "";
+      if(!t){
+        catListEl.innerHTML = `<div style="padding:8px; color:rgba(0,0,0,0.55); font-size:13px;">Bitte zuerst eine Reise laden.</div>`;
+        return;
+      }
+      for(const c of t.categories || []){
+        const el = document.createElement("div");
+        el.className = "item";
+        el.innerHTML = `
+          <div class="itemLeft">
+            <div class="itemTitle">${escapeHtml(c.name)}</div>
+            <div class="itemSub">Rubrik</div>
+          </div>
+          <div class="itemBtns">
+            <button class="pillBtn pillDel">Löschen</button>
+          </div>
+        `;
+        el.querySelector(".pillDel").onclick = () => deleteCategory(c.id);
+        catListEl.appendChild(el);
+      }
+    }
+
+    function renderAll(){
+      renderTrips();
+      renderDays();
+      renderPlan();
+      renderCats();
+
+      // draw route on map when plan view is relevant and a route selected
+      if(currentRoute()){
+        drawSelectedRoute();
+      }
+    }
+
+    // =========================
+    // Init
+    // =========================
+    renderAll();
+
   </script>
 </body>
 </html>
