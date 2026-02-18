@@ -5,6 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Urlaubsplaner</title>
 
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#0a84ff">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Urlaubsplaner">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 
   <style>
@@ -26,7 +34,7 @@
       position:absolute;
       top:14px; left:14px;
       z-index:1000;
-      width:380px;
+      width:390px;
       max-width: calc(100vw - 28px);
       background: var(--bg);
       border: 1px solid var(--border);
@@ -208,21 +216,16 @@
     }
 
     /* Profilbild */
-    .avatarWrap{
-      display:flex;
-      gap:10px;
-      align-items:center;
-    }
+    .avatarWrap{ display:flex; gap:10px; align-items:center; }
     .avatar{
-      width:64px;
-      height:64px;
+      width:64px; height:64px;
       border-radius: 18px;
       border: 1px solid rgba(0,0,0,0.10);
       object-fit: cover;
       background: rgba(0,0,0,0.04);
     }
 
-    /* Leaflet Zoom Button nach unten rechts + etwas "iOS-like" */
+    /* Leaflet Zoom + / - unten rechts, iOS-like */
     .leaflet-control-zoom{
       border: 1px solid rgba(0,0,0,0.12) !important;
       border-radius: 14px !important;
@@ -251,6 +254,7 @@
       <div class="tab" id="tabPlan" onclick="switchTab('plan')">Tagesplan</div>
       <div class="tab" id="tabCats" onclick="switchTab('cats')">Rubriken</div>
       <div class="tab" id="tabProfile" onclick="switchTab('profile')">Profil</div>
+      <div class="tab" id="tabAlerts" onclick="switchTab('alerts')">Warnungen</div>
     </div>
 
     <div class="content">
@@ -273,10 +277,6 @@
 
         <label>Gespeicherte Reisen</label>
         <div class="list" id="tripList"></div>
-
-        <div class="hint">
-          Tipp: Nach „Tage erzeugen“ kannst du im Tab „Tage“ deinen Reisetag auswählen.
-        </div>
       </div>
 
       <!-- ===== Tage ===== -->
@@ -288,10 +288,6 @@
 
         <label style="margin-top:10px;">Tage</label>
         <div class="list" id="dayList"></div>
-
-        <div class="hint">
-          Tippe einen Tag an → im Tab „Tagesplan“ kannst du Routen & Stops anlegen.
-        </div>
       </div>
 
       <!-- ===== Tagesplan ===== -->
@@ -330,13 +326,15 @@
           <span><strong>Zeit:</strong> —</span>
         </div>
 
+        <div class="meta" id="routeAlerts">
+          <span><strong>Warnungen auf Route:</strong> —</span>
+        </div>
+
         <div class="divider"></div>
 
         <label>Stop-Details</label>
         <div class="card" id="stopDetails">
-          <div style="color: rgba(0,0,0,0.55); font-size: 13px;">
-            Wähle einen Stop aus.
-          </div>
+          <div style="color: rgba(0,0,0,0.55); font-size: 13px;">Wähle einen Stop aus.</div>
         </div>
       </div>
 
@@ -350,10 +348,6 @@
 
         <label style="margin-top:10px;">Rubriken</label>
         <div class="list" id="catList"></div>
-
-        <div class="hint">
-          Rubriken nutzt du bei Stops (Essen, Sehenswürdigkeit, Tankstelle, …).
-        </div>
       </div>
 
       <!-- ===== Profil ===== -->
@@ -363,7 +357,7 @@
             <img id="profileAvatar" class="avatar" alt="Profilbild" />
             <div style="flex:1;">
               <div class="itemTitle" id="profileTitle">Kein Profil</div>
-              <div class="itemSub" id="profileSub">Erstelle dein Profil für die spätere Community.</div>
+              <div class="itemSub" id="profileSub">Erstelle dein Profil für später.</div>
             </div>
           </div>
         </div>
@@ -388,11 +382,64 @@
           <button class="btn primary" onclick="saveProfile()">Profil speichern</button>
           <button class="btn danger" onclick="deleteProfile()">Profil löschen</button>
         </div>
-
-        <div class="hint">
-          Hinweis: Alles wird aktuell lokal gespeichert. Community/Teilen kommt später als eigener Ausbau.
-        </div>
       </div>
+
+      <!-- ===== Warnungen ===== -->
+      <div id="viewAlerts" style="display:none;">
+        <div class="card">
+          <div class="itemTitle">Warnungen (lokal)</div>
+          <div class="itemSub">Stau, Panne, Gefahr, Baustelle, Betrugsmasche …</div>
+        </div>
+
+        <label style="margin-top:10px;">Kategorie</label>
+        <select id="alertType" class="field">
+          <option value="stau">Stau</option>
+          <option value="panne">Panne / Hilfe gesucht</option>
+          <option value="baustelle">Baustelle</option>
+          <option value="gefahr">Gefahr</option>
+          <option value="betrug">Betrugsmasche (z.B. Spiegeltrick)</option>
+          <option value="sonstiges">Sonstiges</option>
+        </select>
+
+        <label>Text</label>
+        <textarea id="alertText" class="field" rows="4" style="resize:vertical;" placeholder="Was ist passiert? Kurze, klare Info."></textarea>
+
+        <label>Ort festlegen</label>
+        <div class="twoCol">
+          <button class="btn small" onclick="setAlertPickMode()">Ort per Karte wählen</button>
+          <button class="btn small" onclick="useGpsForAlert()">GPS als Ort</button>
+        </div>
+
+        <label style="margin-top:10px;">Radius (km)</label>
+        <input id="alertRadius" class="field" type="number" step="1" value="10"/>
+
+        <label>Ablauf</label>
+        <select id="alertExpire" class="field">
+          <option value="2">2 Stunden</option>
+          <option value="12">12 Stunden</option>
+          <option value="24" selected>24 Stunden</option>
+          <option value="72">3 Tage</option>
+        </select>
+
+        <div class="row" style="margin-top:10px;">
+          <button class="btn primary" onclick="publishAlert()">Warnung speichern</button>
+          <button class="btn danger" onclick="clearAlerts()">Alle löschen</button>
+        </div>
+
+        <div class="divider"></div>
+
+        <label>Filter</label>
+        <div class="twoCol">
+          <button class="btn small" onclick="showNearbyAlerts()">In meiner Nähe</button>
+          <button class="btn small" onclick="showAllAlerts()">Alle anzeigen</button>
+        </div>
+
+        <label style="margin-top:10px;">Liste</label>
+        <div class="list" id="alertList"></div>
+
+        <div class="hint" id="alertHint">Hinweis: Warnungen sind aktuell nur lokal auf deinem Gerät.</div>
+      </div>
+
     </div>
   </div>
 
@@ -402,62 +449,80 @@
 
   <script>
     // =========================
-    // Storage
+    // Storage (Trips + Profile)
     // =========================
-    const STORAGE_KEY = "urlaubsplaner_v5";
-
-    function loadAll(){
+    const STORAGE_KEY = "urlaubsplaner_state_v1";
+    function loadState(){
       try {
-        const d = JSON.parse(localStorage.getItem(STORAGE_KEY));
-        // Schema sichern
-        if(!d || typeof d !== "object") return { trips: [], profile: null };
-        if(!Array.isArray(d.trips)) d.trips = [];
-        if(!("profile" in d)) d.profile = null;
-        return d;
+        const s = JSON.parse(localStorage.getItem(STORAGE_KEY));
+        if(!s || typeof s !== "object") return { trips: [], profile: null };
+        if(!Array.isArray(s.trips)) s.trips = [];
+        if(!("profile" in s)) s.profile = null;
+        return s;
       } catch(e){
         return { trips: [], profile: null };
       }
     }
-    function saveAll(state){
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    function saveState(state){ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+
+    // =========================
+    // Alerts Storage (local)
+    // =========================
+    const ALERTS_KEY = "urlaubsplaner_alerts_v1";
+    function loadAlerts(){
+      try { return JSON.parse(localStorage.getItem(ALERTS_KEY)) || []; }
+      catch(e){ return []; }
+    }
+    function saveAlerts(arr){ localStorage.setItem(ALERTS_KEY, JSON.stringify(arr)); }
+    function cleanupExpired(alerts){
+      const now = Date.now();
+      return (alerts || []).filter(a => !a.expiresAt || a.expiresAt > now);
     }
 
     // =========================
-    // Map setup (ZOOM rechts unten)
+    // Map setup (Zoom unten rechts)
     // =========================
     const map = L.map('map', { zoomControl: false }).setView([49.8, 9.0], 7);
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
-    L.control.zoom({ position: 'bottomright' }).addTo(map); // + / - rechts unten
+    L.control.zoom({ position: 'bottomright' }).addTo(map);
 
+    const stopLayer = L.layerGroup().addTo(map);
+    const alertLayer = L.layerGroup().addTo(map);
     let routeLine = null;
-    const markerLayer = L.layerGroup().addTo(map);
+
+    // Für Warnungen-auf-Route Check
+    let lastRouteLatLngs = null;
 
     // =========================
-    // App State
+    // App state
     // =========================
     const app = {
-      data: loadAll(),
+      data: loadState(),
       currentTripId: null,
       currentDayId: null,
       currentRouteId: null,
       currentStopId: null,
-      pickMode: null, // "stop"
-      markersByStopId: new Map(),
+      pickModeStop: false,
+      alertPickMode: false,
+      pendingAlertLatLng: null,
+      markersByStopId: new Map()
     };
 
     // =========================
     // Helpers
     // =========================
-    function uid(){
-      return Math.random().toString(36).slice(2, 10) + "_" + Date.now().toString(36);
-    }
+    function uid(){ return Math.random().toString(36).slice(2,10) + "_" + Date.now().toString(36); }
     function escapeHtml(str){
       return String(str)
-        .replaceAll("&","&amp;")
-        .replaceAll("<","&lt;")
-        .replaceAll(">","&gt;")
-        .replaceAll('"',"&quot;")
-        .replaceAll("'","&#039;");
+        .replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;")
+        .replaceAll('"',"&quot;").replaceAll("'","&#039;");
+    }
+    function typeLabel(t){
+      const m = {
+        stau:"Stau", panne:"Panne / Hilfe", baustelle:"Baustelle",
+        gefahr:"Gefahr", betrug:"Betrugsmasche", sonstiges:"Sonstiges"
+      };
+      return m[t] || t;
     }
 
     function defaultCategories(){
@@ -471,9 +536,7 @@
       ];
     }
 
-    function currentTrip(){
-      return app.data.trips.find(t => t.id === app.currentTripId) || null;
-    }
+    function currentTrip(){ return app.data.trips.find(t => t.id === app.currentTripId) || null; }
     function currentDay(){
       const t = currentTrip();
       return t?.days?.find(d => d.id === app.currentDayId) || null;
@@ -494,17 +557,22 @@
     // =========================
     // UI refs
     // =========================
-    const tabTrip = document.getElementById("tabTrip");
-    const tabDays = document.getElementById("tabDays");
-    const tabPlan = document.getElementById("tabPlan");
-    const tabCats = document.getElementById("tabCats");
-    const tabProfile = document.getElementById("tabProfile");
-
-    const viewTrip = document.getElementById("viewTrip");
-    const viewDays = document.getElementById("viewDays");
-    const viewPlan = document.getElementById("viewPlan");
-    const viewCats = document.getElementById("viewCats");
-    const viewProfile = document.getElementById("viewProfile");
+    const tabs = {
+      trip: document.getElementById("tabTrip"),
+      days: document.getElementById("tabDays"),
+      plan: document.getElementById("tabPlan"),
+      cats: document.getElementById("tabCats"),
+      profile: document.getElementById("tabProfile"),
+      alerts: document.getElementById("tabAlerts")
+    };
+    const views = {
+      trip: document.getElementById("viewTrip"),
+      days: document.getElementById("viewDays"),
+      plan: document.getElementById("viewPlan"),
+      cats: document.getElementById("viewCats"),
+      profile: document.getElementById("viewProfile"),
+      alerts: document.getElementById("viewAlerts")
+    };
 
     const tripNameEl = document.getElementById("tripName");
     const dateFromEl = document.getElementById("dateFrom");
@@ -522,12 +590,13 @@
     const stopListEl = document.getElementById("stopList");
     const stopAddrEl = document.getElementById("stopAddr");
     const routeMetaEl = document.getElementById("routeMeta");
+    const routeAlertsEl = document.getElementById("routeAlerts");
     const stopDetailsEl = document.getElementById("stopDetails");
 
     const newCatNameEl = document.getElementById("newCatName");
     const catListEl = document.getElementById("catList");
 
-    // Profil refs
+    // Profile
     const profileAvatarEl = document.getElementById("profileAvatar");
     const profileTitleEl = document.getElementById("profileTitle");
     const profileSubEl = document.getElementById("profileSub");
@@ -536,22 +605,25 @@
     const profileImgEl = document.getElementById("profileImg");
     const profileBioEl = document.getElementById("profileBio");
 
+    // Alerts
+    const alertTypeEl = document.getElementById("alertType");
+    const alertTextEl = document.getElementById("alertText");
+    const alertRadiusEl = document.getElementById("alertRadius");
+    const alertExpireEl = document.getElementById("alertExpire");
+    const alertListEl = document.getElementById("alertList");
+    const alertHintEl = document.getElementById("alertHint");
+
     // =========================
     // Tabs
     // =========================
     function switchTab(name){
-      [tabTrip, tabDays, tabPlan, tabCats, tabProfile].forEach(t => t.classList.remove("active"));
-      viewTrip.style.display = "none";
-      viewDays.style.display = "none";
-      viewPlan.style.display = "none";
-      viewCats.style.display = "none";
-      viewProfile.style.display = "none";
+      Object.values(tabs).forEach(t => t.classList.remove("active"));
+      Object.values(views).forEach(v => v.style.display = "none");
+      tabs[name].classList.add("active");
+      views[name].style.display = "block";
 
-      if(name === "trip"){ tabTrip.classList.add("active"); viewTrip.style.display="block"; }
-      if(name === "days"){ tabDays.classList.add("active"); viewDays.style.display="block"; }
-      if(name === "plan"){ tabPlan.classList.add("active"); viewPlan.style.display="block"; }
-      if(name === "cats"){ tabCats.classList.add("active"); viewCats.style.display="block"; }
-      if(name === "profile"){ tabProfile.classList.add("active"); viewProfile.style.display="block"; renderProfile(); }
+      if(name === "profile") renderProfile();
+      if(name === "alerts"){ showAllAlerts(); }
     }
     window.switchTab = switchTab;
 
@@ -566,7 +638,7 @@
       tripNameEl.value = "";
       dateFromEl.value = "";
       dateToEl.value = "";
-      clearMapAll();
+      clearStopsAndRoute();
       renderAll();
       switchTab("trip");
     }
@@ -584,27 +656,26 @@
         t = { id: uid(), name, dateFrom, dateTo, categories: defaultCategories(), days: [] };
         app.data.trips.unshift(t);
         app.currentTripId = t.id;
-      }else{
+      } else {
         t.name = name; t.dateFrom = dateFrom; t.dateTo = dateTo;
         if(!Array.isArray(t.categories) || t.categories.length === 0) t.categories = defaultCategories();
         if(!Array.isArray(t.days)) t.days = [];
       }
-
-      saveAll(app.data);
+      saveState(app.data);
       renderAll();
       alert("Reise gespeichert.");
     }
     window.saveTrip = saveTrip;
 
-    function deleteTrip(tripId){
-      app.data.trips = app.data.trips.filter(t => t.id !== tripId);
-      if(app.currentTripId === tripId) newTrip();
-      saveAll(app.data);
+    function deleteTrip(id){
+      app.data.trips = app.data.trips.filter(t => t.id !== id);
+      if(app.currentTripId === id) newTrip();
+      saveState(app.data);
       renderAll();
     }
 
-    function loadTrip(tripId){
-      const t = app.data.trips.find(x => x.id === tripId);
+    function loadTrip(id){
+      const t = app.data.trips.find(x => x.id === id);
       if(!t) return;
 
       app.currentTripId = t.id;
@@ -616,13 +687,13 @@
       dateFromEl.value = t.dateFrom || "";
       dateToEl.value = t.dateTo || "";
 
-      clearMapAll();
+      clearStopsAndRoute();
       renderAll();
       switchTab("days");
     }
 
     // =========================
-    // Days generation
+    // Days
     // =========================
     function dateToISO(d){
       const y = d.getFullYear();
@@ -634,7 +705,7 @@
     function generateDays(){
       const name = (tripNameEl.value || "").trim();
       if(!name){ alert("Bitte erst Reise-Name eingeben."); return; }
-      saveTrip(); // ensures trip exists
+      saveTrip();
 
       const t = currentTrip();
       const from = new Date(t.dateFrom + "T00:00:00");
@@ -648,7 +719,6 @@
       const days = [];
       let cur = new Date(from);
       let idx = 1;
-
       while(cur <= to){
         const iso = dateToISO(cur);
         const ex = existingByDate.get(iso);
@@ -668,7 +738,7 @@
       app.currentRouteId = t.days[0]?.routes?.[0]?.id || null;
       app.currentStopId = null;
 
-      saveAll(app.data);
+      saveState(app.data);
       renderAll();
       switchTab("days");
     }
@@ -679,15 +749,19 @@
       const d = currentDay();
       app.currentRouteId = d?.routes?.[0]?.id || null;
       app.currentStopId = null;
-      clearMapRouteOnly();
+      clearStopsAndRoute();
       renderAll();
       switchTab("plan");
+      drawSelectedRoute();
     }
 
+    // =========================
+    // Routes / Stops
+    // =========================
     function addRoute(){
-      const d = currentDay();
       const t = currentTrip();
-      if(!t || !d){ alert("Bitte zuerst eine Reise laden und einen Tag auswählen."); return; }
+      const d = currentDay();
+      if(!t || !d){ alert("Bitte zuerst Reise laden und Tag wählen."); return; }
       const nm = (newRouteNameEl.value || "").trim() || "Route";
       const r = { id: uid(), name: nm, stops: [] };
       d.routes.unshift(r);
@@ -695,12 +769,21 @@
       app.currentRouteId = r.id;
       app.currentStopId = null;
 
-      saveAll(app.data);
-      clearMapRouteOnly();
+      saveState(app.data);
       renderAll();
+      clearStopsAndRoute();
       drawSelectedRoute();
     }
     window.addRoute = addRoute;
+
+    function selectRoute(routeId){
+      app.currentRouteId = routeId;
+      app.currentStopId = null;
+      saveState(app.data);
+      renderAll();
+      clearStopsAndRoute();
+      drawSelectedRoute();
+    }
 
     function deleteRoute(routeId){
       const d = currentDay();
@@ -710,40 +793,34 @@
         app.currentRouteId = d.routes?.[0]?.id || null;
         app.currentStopId = null;
       }
-      saveAll(app.data);
-      clearMapRouteOnly();
+      saveState(app.data);
       renderAll();
-      drawSelectedRoute();
-    }
-
-    function selectRoute(routeId){
-      app.currentRouteId = routeId;
-      app.currentStopId = null;
-      clearMapRouteOnly();
-      renderAll();
+      clearStopsAndRoute();
       drawSelectedRoute();
     }
 
     function setPickModeStop(){
-      if(!currentRoute()){
-        alert("Bitte zuerst eine Route auswählen oder erstellen.");
-        return;
-      }
-      app.pickMode = "stop";
+      if(!currentRoute()){ alert("Bitte zuerst eine Route auswählen/erstellen."); return; }
+      app.pickModeStop = true;
       alert("Stop-Modus aktiv: Tippe auf die Karte, um einen Stop hinzuzufügen.");
     }
     window.setPickModeStop = setPickModeStop;
 
-    function clearPickMode(){
-      app.pickMode = null;
-    }
+    function clearPickMode(){ app.pickModeStop = false; }
     window.clearPickMode = clearPickMode;
+
+    function makeStop({name, lat, lon}){
+      const t = currentTrip();
+      const catId = t?.categories?.[0]?.id || null;
+      return { id: uid(), name: name || "Stop", categoryId: catId, note: "", lat, lon, images: [] };
+    }
 
     async function addStopByAddress(){
       const r = currentRoute();
       if(!r){ alert("Bitte zuerst eine Route auswählen."); return; }
       const q = (stopAddrEl.value || "").trim();
       if(!q){ alert("Bitte Adresse eingeben."); return; }
+
       const g = await geocodeOne(q);
       if(!g){ alert("Adresse nicht gefunden."); return; }
 
@@ -752,23 +829,17 @@
       stopAddrEl.value = "";
       app.currentStopId = s.id;
 
-      saveAll(app.data);
+      saveState(app.data);
       renderAll();
       drawSelectedRoute();
-      focusStopOnMap(s.id);
+      focusStop(s.id);
     }
     window.addStopByAddress = addStopByAddress;
-
-    function makeStop({name, lat, lon}){
-      const t = currentTrip();
-      const catId = t?.categories?.[0]?.id || null;
-      return { id: uid(), name: name || "Stop", categoryId: catId, note: "", lat, lon, images: [] };
-    }
 
     function selectStop(stopId){
       app.currentStopId = stopId;
       renderStopDetails();
-      focusStopOnMap(stopId);
+      focusStop(stopId);
     }
 
     function deleteStop(stopId){
@@ -777,73 +848,46 @@
       r.stops = r.stops.filter(s => s.id !== stopId);
       if(app.currentStopId === stopId) app.currentStopId = null;
 
-      saveAll(app.data);
+      saveState(app.data);
+      renderAll();
+      clearStopsAndRoute();
+      drawSelectedRoute();
+    }
 
-      const m = app.markersByStopId.get(stopId);
-      if(m){
-        markerLayer.removeLayer(m);
-        app.markersByStopId.delete(stopId);
+    // Karte: Stops hinzufügen + Alerts Ort wählen
+    map.on("click", (e) => {
+      // Stop mode
+      if(app.pickModeStop){
+        const r = currentRoute();
+        if(!r) return;
+        const s = makeStop({ name: "Neuer Stop", lat: e.latlng.lat, lon: e.latlng.lng });
+        r.stops.push(s);
+        app.currentStopId = s.id;
+
+        saveState(app.data);
+        renderAll();
+        drawSelectedRoute();
+        focusStop(s.id);
+        return;
       }
 
-      clearMapRouteOnly();
-      renderAll();
-      drawSelectedRoute();
-    }
-
-    // =========================
-    // Categories
-    // =========================
-    function addCategory(){
-      const t = currentTrip();
-      if(!t){ alert("Bitte zuerst eine Reise laden."); return; }
-      const nm = (newCatNameEl.value || "").trim();
-      if(!nm){ alert("Bitte Rubrik-Name eingeben."); return; }
-      t.categories.push({ id: uid(), name: nm });
-      newCatNameEl.value = "";
-      saveAll(app.data);
-      renderAll();
-    }
-    window.addCategory = addCategory;
-
-    function deleteCategory(catId){
-      const t = currentTrip();
-      if(!t) return;
-      const used = (t.days||[]).some(d => (d.routes||[]).some(r => (r.stops||[]).some(s => s.categoryId === catId)));
-      if(used){ alert("Diese Rubrik wird noch verwendet. Erst Stops ändern, dann löschen."); return; }
-      t.categories = t.categories.filter(c => c.id !== catId);
-      saveAll(app.data);
-      renderAll();
-    }
-
-    // =========================
-    // Map click to add stop
-    // =========================
-    map.on("click", (e) => {
-      if(app.pickMode !== "stop") return;
-      const r = currentRoute();
-      if(!r) return;
-
-      const s = makeStop({ name: "Neuer Stop", lat: e.latlng.lat, lon: e.latlng.lng });
-      r.stops.push(s);
-      app.currentStopId = s.id;
-
-      saveAll(app.data);
-      renderAll();
-      drawSelectedRoute();
-      focusStopOnMap(s.id);
+      // Alert pick mode
+      if(app.alertPickMode){
+        app.pendingAlertLatLng = { lat: e.latlng.lat, lng: e.latlng.lng };
+        app.alertPickMode = false;
+        alertHintEl.textContent = `Ort gesetzt: ${app.pendingAlertLatLng.lat.toFixed(5)}, ${app.pendingAlertLatLng.lng.toFixed(5)}`;
+        return;
+      }
     });
 
-    function clearMapAll(){
+    function clearStopsAndRoute(){
       if(routeLine){ map.removeLayer(routeLine); routeLine = null; }
-      markerLayer.clearLayers();
+      stopLayer.clearLayers();
       app.markersByStopId.clear();
+      lastRouteLatLngs = null;
     }
-    function clearMapRouteOnly(){
-      if(routeLine){ map.removeLayer(routeLine); routeLine = null; }
-      markerLayer.clearLayers();
-      app.markersByStopId.clear();
-    }
-    function focusStopOnMap(stopId){
+
+    function focusStop(stopId){
       const m = app.markersByStopId.get(stopId);
       if(m){
         map.setView(m.getLatLng(), Math.max(map.getZoom(), 12));
@@ -852,37 +896,38 @@
     }
 
     // =========================
-    // Routing draw
+    // Routing + draw
     // =========================
     async function drawSelectedRoute(){
       const r = currentRoute();
       if(!r){
         setRouteMeta("—","—","—");
-        clearMapRouteOnly();
+        setRouteAlertsNone();
+        clearStopsAndRoute();
         return;
       }
 
-      clearMapRouteOnly();
+      clearStopsAndRoute();
 
-      (r.stops || []).forEach((s, idx) => {
+      // markers
+      (r.stops||[]).forEach((s, idx) => {
         const tag = catName(s.categoryId);
-        const m = L.marker([s.lat, s.lon], { draggable: true }).addTo(markerLayer);
+        const m = L.marker([s.lat, s.lon], { draggable:true }).addTo(stopLayer);
         app.markersByStopId.set(s.id, m);
-
         m.bindPopup(`<b>${escapeHtml(s.name || ("Stop " + (idx+1)))}</b><br><span style="opacity:.7">${escapeHtml(tag)}</span>`);
         m.on("click", () => selectStop(s.id));
         m.on("dragend", () => {
           const p = m.getLatLng();
-          s.lat = p.lat;
-          s.lon = p.lng;
-          saveAll(app.data);
+          s.lat = p.lat; s.lon = p.lng;
+          saveState(app.data);
           renderAll();
           drawSelectedRoute();
         });
       });
 
-      if((r.stops || []).length < 2){
+      if((r.stops||[]).length < 2){
         setRouteMeta(r.name, "—", "—");
+        setRouteAlertsNone();
         return;
       }
 
@@ -890,6 +935,7 @@
       const route = await routeOSRM(pts);
       if(!route){
         setRouteMeta(r.name, "—", "—");
+        setRouteAlertsNone();
         return;
       }
 
@@ -899,6 +945,10 @@
       const km = (route.distance/1000).toFixed(1) + " km";
       const min = Math.round(route.duration/60) + " min";
       setRouteMeta(r.name, km, min);
+
+      // Save geometry for alert-on-route checks
+      lastRouteLatLngs = (route.geometry?.coordinates || []).map(c => ({ lat: c[1], lng: c[0] }));
+      updateRouteAlertsOnRoute();
     }
 
     function setRouteMeta(name, dist, time){
@@ -907,6 +957,10 @@
         <span><strong>Distanz:</strong> ${escapeHtml(dist || "—")}</span>
         <span><strong>Zeit:</strong> ${escapeHtml(time || "—")}</span>
       `;
+    }
+
+    function setRouteAlertsNone(){
+      routeAlertsEl.innerHTML = `<span><strong>Warnungen auf Route:</strong> —</span>`;
     }
 
     async function routeOSRM(points){
@@ -929,7 +983,7 @@
     }
 
     // =========================
-    // Stop details (name/category/note/images)
+    // Stop Details (Text + Bilder)
     // =========================
     function renderStopDetails(){
       const s = currentStop();
@@ -944,7 +998,9 @@
         return `<option value="${c.id}" ${sel}>${escapeHtml(c.name)}</option>`;
       }).join("");
 
-      const imgs = (s.images||[]).map((src) => `<img src="${src}" alt="Bild" style="width:100%;height:80px;object-fit:cover;border-radius:12px;border:1px solid rgba(0,0,0,0.08);">`).join("");
+      const imgs = (s.images||[]).map(src =>
+        `<img src="${src}" alt="Bild" style="width:100%;height:80px;object-fit:cover;border-radius:12px;border:1px solid rgba(0,0,0,0.08);">`
+      ).join("");
 
       stopDetailsEl.innerHTML = `
         <label style="margin-top:0;">Name</label>
@@ -965,23 +1021,18 @@
 
         <label>Bilder (lokal)</label>
         <input class="field" id="sdImg" type="file" accept="image/*" />
-        <div class="hint">Bilder werden lokal gespeichert (begrenzter Speicher).</div>
+        <div class="hint">Hinweis: Viele Bilder können den Speicher füllen.</div>
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px;">${imgs}</div>
       `;
 
       document.getElementById("sdSave").onclick = () => {
-        const nm = document.getElementById("sdName").value.trim() || "Stop";
-        const cat = document.getElementById("sdCat").value;
-        const note = document.getElementById("sdNote").value;
-
-        s.name = nm;
-        s.categoryId = cat;
-        s.note = note;
-
-        saveAll(app.data);
+        s.name = document.getElementById("sdName").value.trim() || "Stop";
+        s.categoryId = document.getElementById("sdCat").value;
+        s.note = document.getElementById("sdNote").value || "";
+        saveState(app.data);
         renderAll();
         drawSelectedRoute();
-        focusStopOnMap(s.id);
+        focusStop(s.id);
       };
 
       document.getElementById("sdDelete").onclick = () => {
@@ -994,7 +1045,7 @@
         const base64 = await fileToBase64(file);
         if(!Array.isArray(s.images)) s.images = [];
         s.images.unshift(base64);
-        saveAll(app.data);
+        saveState(app.data);
         renderStopDetails();
       };
     }
@@ -1009,30 +1060,51 @@
     }
 
     // =========================
-    // Profil
+    // Categories
     // =========================
+    function addCategory(){
+      const t = currentTrip();
+      if(!t){ alert("Bitte zuerst eine Reise laden."); return; }
+      const nm = (newCatNameEl.value || "").trim();
+      if(!nm){ alert("Bitte Rubrik-Name eingeben."); return; }
+      t.categories.push({ id: uid(), name: nm });
+      newCatNameEl.value = "";
+      saveState(app.data);
+      renderAll();
+    }
+    window.addCategory = addCategory;
+
+    function deleteCategory(catId){
+      const t = currentTrip();
+      if(!t) return;
+      const used = (t.days||[]).some(d => (d.routes||[]).some(r => (r.stops||[]).some(s => s.categoryId === catId)));
+      if(used){ alert("Diese Rubrik wird noch verwendet. Erst Stops ändern, dann löschen."); return; }
+      t.categories = t.categories.filter(c => c.id !== catId);
+      saveState(app.data);
+      renderAll();
+    }
+
+    // =========================
+    // Profile
+    // =========================
+    function humanTravelType(v){
+      if(v === "alleine") return "Reiseart: Alleine";
+      if(v === "freunde") return "Reiseart: Mit Freunden";
+      if(v === "familie") return "Reiseart: Mit Familie";
+      return "Reiseart: —";
+    }
+
     function renderProfile(){
       const p = app.data.profile;
-
-      if(p?.avatar){
-        profileAvatarEl.src = p.avatar;
-      }else{
-        profileAvatarEl.removeAttribute("src");
-      }
+      if(p?.avatar) profileAvatarEl.src = p.avatar;
+      else profileAvatarEl.removeAttribute("src");
 
       profileNameEl.value = p?.name || "";
       travelTypeEl.value = p?.travelType || "alleine";
       profileBioEl.value = p?.bio || "";
 
       profileTitleEl.textContent = p?.name ? p.name : "Kein Profil";
-      profileSubEl.textContent = p?.travelType ? humanTravelType(p.travelType) : "Erstelle dein Profil für die spätere Community.";
-    }
-
-    function humanTravelType(v){
-      if(v === "alleine") return "Reiseart: Alleine";
-      if(v === "freunde") return "Reiseart: Mit Freunden";
-      if(v === "familie") return "Reiseart: Mit Familie";
-      return "Reiseart: —";
+      profileSubEl.textContent = p?.travelType ? humanTravelType(p.travelType) : "Erstelle dein Profil für später.";
     }
 
     async function saveProfile(){
@@ -1041,14 +1113,11 @@
       const bio = profileBioEl.value || "";
 
       let avatar = app.data.profile?.avatar || null;
-
       const file = profileImgEl.files?.[0];
-      if(file){
-        avatar = await fileToBase64(file);
-      }
+      if(file) avatar = await fileToBase64(file);
 
       app.data.profile = { name, travelType, bio, avatar, updatedAt: Date.now() };
-      saveAll(app.data);
+      saveState(app.data);
       profileImgEl.value = "";
       renderProfile();
       alert("Profil gespeichert.");
@@ -1058,10 +1127,241 @@
     function deleteProfile(){
       if(!confirm("Profil wirklich löschen?")) return;
       app.data.profile = null;
-      saveAll(app.data);
+      saveState(app.data);
       renderProfile();
     }
     window.deleteProfile = deleteProfile;
+
+    // =========================
+    // Alerts (local)
+    // =========================
+    function setAlertPickMode(){
+      app.alertPickMode = true;
+      app.pendingAlertLatLng = null;
+      alertHintEl.textContent = "Karte antippen: Ort wird für die Warnung gesetzt.";
+    }
+    window.setAlertPickMode = setAlertPickMode;
+
+    function useGpsForAlert(){
+      if(!navigator.geolocation){ alert("GPS wird nicht unterstützt."); return; }
+      alertHintEl.textContent = "GPS wird geholt…";
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          app.pendingAlertLatLng = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+          alertHintEl.textContent = `GPS gesetzt: ${app.pendingAlertLatLng.lat.toFixed(5)}, ${app.pendingAlertLatLng.lng.toFixed(5)}`;
+          map.setView([app.pendingAlertLatLng.lat, app.pendingAlertLatLng.lng], Math.max(map.getZoom(), 12));
+        },
+        () => { alertHintEl.textContent = "GPS nicht verfügbar (Berechtigung/Signal)."; },
+        { enableHighAccuracy: true, timeout: 10000 }
+      );
+    }
+    window.useGpsForAlert = useGpsForAlert;
+
+    function publishAlert(){
+      const type = alertTypeEl.value;
+      const text = (alertTextEl.value || "").trim();
+      const radiusKm = parseFloat(alertRadiusEl.value);
+      const expireH = parseFloat(alertExpireEl.value);
+
+      if(!text){ alert("Bitte Text eingeben."); return; }
+      if(!app.pendingAlertLatLng){ alert("Bitte Ort setzen (Karte oder GPS)."); return; }
+      if(!isFinite(radiusKm) || radiusKm <= 0){ alert("Radius muss > 0 sein."); return; }
+
+      const now = Date.now();
+      const expiresAt = now + expireH * 60 * 60 * 1000;
+
+      const obj = {
+        id: uid(),
+        type, text,
+        lat: app.pendingAlertLatLng.lat,
+        lng: app.pendingAlertLatLng.lng,
+        radiusKm,
+        createdAt: now,
+        expiresAt
+      };
+
+      const arr = cleanupExpired(loadAlerts());
+      arr.unshift(obj);
+      saveAlerts(arr);
+
+      alertTextEl.value = "";
+      app.pendingAlertLatLng = null;
+      alertHintEl.textContent = "Warnung gespeichert (lokal).";
+
+      renderAlerts(arr);
+      drawAlerts(arr);
+
+      // Wenn gerade eine Route offen ist, Hinweis aktualisieren
+      updateRouteAlertsOnRoute();
+    }
+    window.publishAlert = publishAlert;
+
+    function clearAlerts(){
+      if(!confirm("Alle lokalen Warnungen löschen?")) return;
+      localStorage.removeItem(ALERTS_KEY);
+      renderAlerts([]);
+      drawAlerts([]);
+      alertHintEl.textContent = "Alle lokalen Warnungen gelöscht.";
+      updateRouteAlertsOnRoute();
+    }
+    window.clearAlerts = clearAlerts;
+
+    function formatTime(ts){
+      const d = new Date(ts);
+      return d.toLocaleString();
+    }
+
+    function renderAlerts(alerts){
+      alertListEl.innerHTML = "";
+      if(!alerts.length){
+        alertListEl.innerHTML = `<div style="padding:8px; color:rgba(0,0,0,0.55); font-size:13px;">Keine Warnungen.</div>`;
+        return;
+      }
+
+      for(const a of alerts){
+        const el = document.createElement("div");
+        el.className = "item";
+        el.innerHTML = `
+          <div class="itemLeft" style="min-width:0;">
+            <div class="itemTitle">${escapeHtml(typeLabel(a.type))} • ${a.radiusKm} km</div>
+            <div class="itemSub">${escapeHtml(a.text).slice(0,120)}${a.text.length>120?"…":""}</div>
+            <div class="itemSub">Erstellt: ${formatTime(a.createdAt)} • Ablauf: ${formatTime(a.expiresAt)}</div>
+          </div>
+          <div class="itemBtns">
+            <button class="pillBtn pillLoad">Zeigen</button>
+            <button class="pillBtn pillDel">X</button>
+          </div>
+        `;
+        el.querySelector(".pillLoad").onclick = () => map.setView([a.lat, a.lng], 13);
+        el.querySelector(".pillDel").onclick = () => {
+          const arr = cleanupExpired(loadAlerts()).filter(x => x.id !== a.id);
+          saveAlerts(arr);
+          renderAlerts(arr);
+          drawAlerts(arr);
+          updateRouteAlertsOnRoute();
+        };
+        alertListEl.appendChild(el);
+      }
+    }
+
+    function drawAlerts(alerts){
+      alertLayer.clearLayers();
+      for(const a of alerts){
+        const m = L.marker([a.lat, a.lng]).addTo(alertLayer);
+        m.bindPopup(`<b>${escapeHtml(typeLabel(a.type))}</b><br>${escapeHtml(a.text)}<br><span style="opacity:.7">Radius: ${a.radiusKm} km</span>`);
+      }
+    }
+
+    function showAllAlerts(){
+      const arr = cleanupExpired(loadAlerts());
+      saveAlerts(arr);
+      renderAlerts(arr);
+      drawAlerts(arr);
+      alertHintEl.textContent = "Alle (nicht abgelaufenen) Warnungen angezeigt.";
+    }
+    window.showAllAlerts = showAllAlerts;
+
+    function haversineKm(a, b){
+      const R = 6371;
+      const toRad = (x)=> x*Math.PI/180;
+      const dLat = toRad(b.lat - a.lat);
+      const dLng = toRad(b.lng - a.lng);
+      const s1 = Math.sin(dLat/2);
+      const s2 = Math.sin(dLng/2);
+      const q = s1*s1 + Math.cos(toRad(a.lat))*Math.cos(toRad(b.lat))*s2*s2;
+      return 2 * R * Math.asin(Math.sqrt(q));
+    }
+
+    function showNearbyAlerts(){
+      if(!navigator.geolocation){ alert("GPS wird nicht unterstützt."); return; }
+      alertHintEl.textContent = "GPS wird geholt…";
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const me = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+          const arr = cleanupExpired(loadAlerts());
+          const nearby = arr.filter(a => haversineKm(me, {lat:a.lat, lng:a.lng}) <= (a.radiusKm || 10));
+          renderAlerts(nearby);
+          drawAlerts(nearby);
+          alertHintEl.textContent = `Warnungen in deiner Nähe: ${nearby.length}`;
+        },
+        () => { alertHintEl.textContent = "GPS nicht verfügbar."; },
+        { enableHighAccuracy: true, timeout: 10000 }
+      );
+    }
+    window.showNearbyAlerts = showNearbyAlerts;
+
+    // =========================
+    // Warnungen-auf-Route Check
+    // =========================
+    function toLocalKm(p, refLat){
+      const kLat = 111.32;
+      const kLng = 111.32 * Math.cos(refLat * Math.PI/180);
+      return { x: p.lng * kLng, y: p.lat * kLat };
+    }
+    function pointToSegmentDistanceKm(P, A, B){
+      const refLat = (A.lat + B.lat) / 2;
+      const p = toLocalKm(P, refLat);
+      const a = toLocalKm(A, refLat);
+      const b = toLocalKm(B, refLat);
+
+      const ABx = b.x - a.x, ABy = b.y - a.y;
+      const APx = p.x - a.x, APy = p.y - a.y;
+      const ab2 = ABx*ABx + ABy*ABy;
+
+      let t = ab2 === 0 ? 0 : (APx*ABx + APy*ABy) / ab2;
+      t = Math.max(0, Math.min(1, t));
+
+      const cx = a.x + t*ABx;
+      const cy = a.y + t*ABy;
+      const dx = p.x - cx;
+      const dy = p.y - cy;
+      return Math.sqrt(dx*dx + dy*dy);
+    }
+    function distancePointToPolylineKm(point, latlngs){
+      if(!latlngs || latlngs.length < 2) return Infinity;
+      let min = Infinity;
+      for(let i=0; i<latlngs.length-1; i++){
+        const d = pointToSegmentDistanceKm(point, latlngs[i], latlngs[i+1]);
+        if(d < min) min = d;
+      }
+      return min;
+    }
+
+    function updateRouteAlertsOnRoute(){
+      const r = currentRoute();
+      if(!r || !lastRouteLatLngs || lastRouteLatLngs.length < 2){
+        routeAlertsEl.innerHTML = `<span><strong>Warnungen auf Route:</strong> —</span>`;
+        return;
+      }
+
+      const THRESH_KM = 1.0; // 1 km Nähe zur Route
+      const alerts = cleanupExpired(loadAlerts());
+      const hits = [];
+
+      for(const a of alerts){
+        if(typeof a.lat !== "number" || typeof a.lng !== "number") continue;
+        const d = distancePointToPolylineKm({lat:a.lat, lng:a.lng}, lastRouteLatLngs);
+        if(d <= THRESH_KM) hits.push({ ...a, distKm: d });
+      }
+
+      if(!hits.length){
+        routeAlertsEl.innerHTML = `<span><strong>Warnungen auf Route:</strong> Keine</span>`;
+        return;
+      }
+
+      hits.sort((x,y)=> x.distKm - y.distKm);
+      const top = hits.slice(0, 2);
+
+      routeAlertsEl.innerHTML = `
+        <span><strong>Warnungen auf Route:</strong> ${hits.length}</span>
+        ${top.map(a => `
+          <span style="cursor:pointer; text-decoration:underline;"
+                onclick="map.setView([${a.lat}, ${a.lng}], 13)">
+            ${escapeHtml(typeLabel(a.type))} (${a.distKm.toFixed(2)} km)
+          </span>
+        `).join("")}
+      `;
+    }
 
     // =========================
     // Render
@@ -1086,9 +1386,7 @@
           </div>
         `;
         el.querySelector(".pillLoad").onclick = () => loadTrip(t.id);
-        el.querySelector(".pillDel").onclick = () => {
-          if(confirm("Reise wirklich löschen?")) deleteTrip(t.id);
-        };
+        el.querySelector(".pillDel").onclick = () => { if(confirm("Reise wirklich löschen?")) deleteTrip(t.id); };
         tripListEl.appendChild(el);
       }
     }
@@ -1103,19 +1401,16 @@
         dayListEl.innerHTML = `<div style="padding:8px; color:rgba(0,0,0,0.55); font-size:13px;">Keine Tage vorhanden. Gehe zu „Reise“ → „Tage erzeugen“.</div>`;
         return;
       }
-
       for(const d of t.days){
         const el = document.createElement("div");
         el.className = "item";
         const active = (d.id === app.currentDayId);
         el.style.borderColor = active ? "rgba(10,132,255,0.35)" : "rgba(0,0,0,0.07)";
         el.style.background = active ? "rgba(10,132,255,0.08)" : "rgba(255,255,255,0.9)";
-        const routesCount = (d.routes||[]).length;
-
         el.innerHTML = `
           <div class="itemLeft">
             <div class="itemTitle">Tag ${d.dayIndex}: ${escapeHtml(d.date)}</div>
-            <div class="itemSub">${routesCount} Route(n)</div>
+            <div class="itemSub">${(d.routes||[]).length} Route(n)</div>
           </div>
           <div class="itemBtns">
             <button class="pillBtn pillLoad">Wählen</button>
@@ -1136,6 +1431,7 @@
         stopListEl.innerHTML = "";
         stopDetailsEl.innerHTML = `<div style="color: rgba(0,0,0,0.55); font-size: 13px;">Wähle einen Stop aus.</div>`;
         setRouteMeta("—","—","—");
+        setRouteAlertsNone();
         return;
       }
 
@@ -1146,7 +1442,7 @@
       routeListEl.innerHTML = "";
       if(!d.routes || d.routes.length === 0){
         routeListEl.innerHTML = `<div style="padding:8px; color:rgba(0,0,0,0.55); font-size:13px;">Noch keine Route. Oben „+ Route“.</div>`;
-      }else{
+      } else {
         for(const r of d.routes){
           const active = (r.id === app.currentRouteId);
           const el = document.createElement("div");
@@ -1175,6 +1471,7 @@
       if(!r){
         stopListEl.innerHTML = `<div style="padding:8px; color:rgba(0,0,0,0.55); font-size:13px;">Bitte Route auswählen.</div>`;
         setRouteMeta("—","—","—");
+        setRouteAlertsNone();
         stopDetailsEl.innerHTML = `<div style="color: rgba(0,0,0,0.55); font-size: 13px;">Wähle einen Stop aus.</div>`;
         return;
       }
@@ -1182,7 +1479,8 @@
       if(!r.stops || r.stops.length === 0){
         stopListEl.innerHTML = `<div style="padding:8px; color:rgba(0,0,0,0.55); font-size:13px;">Noch keine Stops. Nutze „Stop per Karte“ oder Adresse.</div>`;
         setRouteMeta(r.name, "—", "—");
-      }else{
+        setRouteAlertsNone();
+      } else {
         for(const s of r.stops){
           const active = (s.id === app.currentStopId);
           const el = document.createElement("div");
@@ -1206,6 +1504,9 @@
       }
 
       renderStopDetails();
+
+      // Wenn Route schon berechnet wurde, Warnungen-auf-Route anzeigen
+      updateRouteAlertsOnRoute();
     }
 
     function renderCats(){
@@ -1237,14 +1538,21 @@
       renderDays();
       renderPlan();
       renderCats();
-      if(currentRoute()) drawSelectedRoute();
+      renderProfile();
     }
 
     // =========================
     // Init
     // =========================
     renderAll();
-    renderProfile();
+
+    // =========================
+    // PWA Service Worker
+    // =========================
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("./sw.js");
+    }
+
   </script>
 </body>
 </html>
