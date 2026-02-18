@@ -2,49 +2,611 @@
 <html lang="de">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>Urlaubsplaner</title>
 
   <!-- PWA -->
   <link rel="manifest" href="manifest.json" />
-  <meta name="theme-color" content="#2A7FFF" />
+  <meta name="theme-color" content="#0A84FF" />
 
-  <!-- iOS App Support -->
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="apple-mobile-web-app-title" content="Urlaubsplaner">
-  <link rel="apple-touch-icon" href="icon-192.png">
+  <!-- iOS (Add to Home Screen) -->
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="Urlaubsplaner" />
+  <link rel="apple-touch-icon" href="icon-192.png" />
 
   <!-- Leaflet -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 
   <style>
-    body { margin:0; }
-    #map { height:100vh; }
+    :root{
+      --bg: rgba(255,255,255,0.94);
+      --border: rgba(0,0,0,0.10);
+      --shadow: 0 18px 55px rgba(0,0,0,0.18);
+      --text: #0b0f14;
+      --sub: rgba(11,15,20,0.65);
+      --blue: #0A84FF;
+      --red: #FF3B30;
+      --chip: rgba(10,132,255,0.14);
+      --radius: 18px;
+    }
+
+    html, body { height:100%; margin:0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: var(--text); }
+
+    #map { height:100vh; width:100vw; }
+
+    /* Zoom controls bottom-right */
+    .leaflet-bottom.leaflet-right { margin: 14px; }
+    .leaflet-control-zoom {
+      box-shadow: var(--shadow);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      overflow: hidden;
+    }
+    .leaflet-control-zoom a{
+      width: 44px; height: 44px; line-height: 44px;
+      font-size: 20px;
+    }
+
+    /* Panel */
+    .panel{
+      position: absolute;
+      top: 14px;
+      left: 14px;
+      width: min(360px, calc(100vw - 28px));
+      background: var(--bg);
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow);
+      border-radius: var(--radius);
+      padding: 14px;
+      z-index: 1000;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+    }
+
+    .title{
+      font-weight: 800;
+      font-size: 18px;
+      letter-spacing: -0.02em;
+      margin: 2px 0 10px;
+      display:flex; align-items:center; justify-content:space-between;
+      gap:10px;
+    }
+
+    .tabs{
+      display:flex;
+      gap:8px;
+      margin: 10px 0 10px;
+    }
+    .tab{
+      border:1px solid var(--border);
+      background:#fff;
+      border-radius: 999px;
+      padding: 8px 10px;
+      font-size: 13px;
+      cursor:pointer;
+      user-select:none;
+    }
+    .tab.active{
+      background: var(--chip);
+      border-color: rgba(10,132,255,0.35);
+      color: var(--blue);
+      font-weight: 700;
+    }
+
+    .row{ display:flex; gap:10px; }
+    .row > * { flex:1; }
+
+    .field{
+      display:flex; flex-direction:column; gap:6px;
+      margin: 8px 0;
+    }
+    label{ font-size:12px; color: var(--sub); }
+
+    input[type="text"], input[type="date"]{
+      width:100%;
+      border:1px solid var(--border);
+      border-radius: 12px;
+      padding: 10px 10px;
+      font-size: 14px;
+      background:#fff;
+      outline:none;
+    }
+    input[type="text"]:focus, input[type="date"]:focus{
+      border-color: rgba(10,132,255,0.55);
+      box-shadow: 0 0 0 4px rgba(10,132,255,0.12);
+    }
+
+    .btn{
+      width:100%;
+      border: 0;
+      border-radius: 14px;
+      padding: 12px 12px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor:pointer;
+      background: var(--blue);
+      color: #fff;
+      box-shadow: 0 10px 20px rgba(10,132,255,0.22);
+      user-select:none;
+    }
+    .btn.secondary{
+      background: #fff;
+      color: var(--text);
+      border:1px solid var(--border);
+      box-shadow:none;
+      font-weight: 700;
+    }
+    .btn.danger{
+      background: var(--red);
+      box-shadow: 0 10px 20px rgba(255,59,48,0.18);
+    }
+    .btn.small{
+      padding: 10px 10px;
+      border-radius: 12px;
+      font-size: 13px;
+    }
+
+    .grid2{ display:grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+    .modeHint{
+      margin-top: 10px;
+      border-top: 1px solid rgba(0,0,0,0.06);
+      padding-top: 10px;
+      font-size: 13px;
+      color: var(--sub);
+      line-height: 1.35;
+    }
+    .chip{
+      display:inline-flex; align-items:center; gap:8px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: var(--chip);
+      color: var(--blue);
+      font-weight: 800;
+      font-size: 12px;
+      margin-left: 8px;
+    }
+
+    .stats{
+      margin-top: 10px;
+      padding: 10px;
+      border-radius: 14px;
+      border: 1px solid rgba(0,0,0,0.06);
+      background: rgba(255,255,255,0.75);
+    }
+    .muted{ color: var(--sub); }
+
+    .list{
+      margin-top: 8px;
+      border-top: 1px solid rgba(0,0,0,0.06);
+      padding-top: 10px;
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+      max-height: 220px;
+      overflow:auto;
+    }
+    .card{
+      border:1px solid var(--border);
+      border-radius: 14px;
+      padding: 10px;
+      background:#fff;
+    }
+    .card .h{
+      display:flex; align-items:center; justify-content:space-between;
+      gap:10px;
+      font-weight:800;
+      font-size: 13px;
+    }
+    .card .p{ margin-top:6px; font-size: 12px; color: var(--sub); line-height:1.35; }
+    .card .actions{ margin-top:10px; display:flex; gap:8px; }
+    .card .actions .btn{ flex:1; }
+
+    .hide{ display:none; }
+
+    /* Mobile safe areas */
+    @supports(padding: max(0px)){
+      .panel{
+        top: max(14px, env(safe-area-inset-top));
+        left: max(14px, env(safe-area-inset-left));
+      }
+      .leaflet-bottom.leaflet-right{
+        margin-right: max(14px, env(safe-area-inset-right));
+        margin-bottom: max(14px, env(safe-area-inset-bottom));
+      }
+    }
   </style>
 </head>
-
 <body>
+  <div id="map"></div>
 
-<div id="map"></div>
+  <div class="panel">
+    <div class="title">
+      <span>Urlaubsplaner</span>
+      <span class="chip" id="modeChip">Modus: Start</span>
+    </div>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <div class="tabs">
+      <div class="tab active" data-tab="plan">Reise planen</div>
+      <div class="tab" data-tab="saved">Gespeichert</div>
+    </div>
 
-<script>
-  const map = L.map('map').setView([51.505, 10], 6);
+    <!-- TAB: PLAN -->
+    <div id="tab-plan">
+      <div class="field">
+        <label>Von (Start) – Enter zum Suchen</label>
+        <input id="fromInput" type="text" placeholder="z.B. Brensbach" autocomplete="off" />
+      </div>
 
-  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 19
-  }).addTo(map);
-</script>
+      <div class="field">
+        <label>Nach (Ziel) – Enter zum Suchen</label>
+        <input id="toInput" type="text" placeholder="z.B. Verona" autocomplete="off" />
+      </div>
 
-<script>
-  // ✅ Service Worker registrieren
-  if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("./sw.js");
-  }
-</script>
+      <div class="field">
+        <label>Zeitraum</label>
+        <div class="row">
+          <input id="dateFrom" type="date" />
+          <input id="dateTo" type="date" />
+        </div>
+      </div>
 
+      <div class="grid2">
+        <button class="btn small" id="btnSetStart">📍 Startpunkt setzen</button>
+        <button class="btn small secondary" id="btnSetStop">🟡 Zwischenstopp setzen</button>
+        <button class="btn small" id="btnSetGoal">🏁 Ziel setzen</button>
+        <button class="btn small secondary" id="btnClearStops">🧹 Zwischenstopps löschen</button>
+      </div>
+
+      <div style="margin-top:10px;">
+        <button class="btn danger" id="btnClearAll">🗑️ Alles löschen</button>
+      </div>
+
+      <div class="stats">
+        <div><b>Route:</b> <span class="muted" id="routeStatus">—</span></div>
+        <div class="muted" style="margin-top:6px;">Distanz: <b id="dist">—</b> · Zeit: <b id="time">—</b></div>
+      </div>
+
+      <div style="margin-top:10px;" class="grid2">
+        <button class="btn secondary" id="btnCalcRoute">Route berechnen</button>
+        <button class="btn" id="btnSaveTrip">Reise speichern</button>
+      </div>
+
+      <div class="modeHint">
+        Tipp: Button drücken → auf die Karte tippen. Marker sind verschiebbar (ziehen) und die Route wird neu berechnet.
+      </div>
+    </div>
+
+    <!-- TAB: SAVED -->
+    <div id="tab-saved" class="hide">
+      <div class="muted" style="font-size:13px;">Gespeicherte Reisen (nur auf diesem Gerät).</div>
+      <div class="list" id="savedList"></div>
+      <div style="margin-top:10px;">
+        <button class="btn danger" id="btnClearStorage">Alles löschen</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    const $ = (id) => document.getElementById(id);
+
+    function fmtKm(m){ return (m/1000).toFixed(1).replace(".", ",") + " km"; }
+    function fmtTime(s){
+      const h = Math.floor(s/3600);
+      const m = Math.round((s - h*3600)/60);
+      return (h>0? `${h} h `:"") + `${m} min`;
+    }
+    function safeJsonParse(str, fb){ try{ return JSON.parse(str); } catch { return fb; } }
+    function escapeHtml(s){
+      return String(s).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;")
+        .replaceAll('"',"&quot;").replaceAll("'","&#039;");
+    }
+
+    // Map
+    const map = L.map("map", { zoomControl:false }).setView([51.505, 10], 6);
+    L.control.zoom({ position:"bottomright" }).addTo(map);
+    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom:19 }).addTo(map);
+
+    // State
+    let mode = "start"; // start | stop | ziel
+    let startMarker = null;
+    let goalMarker = null;
+    let stopMarkers = [];
+    let routeLine = null;
+    let lastRoute = null;
+
+    function setMode(m){
+      mode = m;
+      $("modeChip").textContent = m==="start" ? "Modus: Start" : (m==="stop" ? "Modus: Zwischenstopp" : "Modus: Ziel");
+    }
+
+    // Geocode
+    async function geocode(q){
+      const url = "https://nominatim.openstreetmap.org/search?format=json&limit=1&q=" + encodeURIComponent(q);
+      const res = await fetch(url, { headers:{ "Accept":"application/json" } });
+      const data = await res.json();
+      if(!data || !data[0]) return null;
+      return { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon) };
+    }
+    async function reverseGeocode(lat, lon){
+      const url = "https://nominatim.openstreetmap.org/reverse?format=json&lat=" + encodeURIComponent(lat) + "&lon=" + encodeURIComponent(lon);
+      const res = await fetch(url, { headers:{ "Accept":"application/json" } });
+      const data = await res.json();
+      return data?.display_name || null;
+    }
+
+    // Routing (OSRM driving)
+    async function buildRoute(){
+      if(!startMarker || !goalMarker){
+        lastRoute = null;
+        $("routeStatus").textContent = "Bitte Start und Ziel setzen.";
+        $("dist").textContent = "—";
+        $("time").textContent = "—";
+        if(routeLine){ map.removeLayer(routeLine); routeLine=null; }
+        return;
+      }
+
+      const pts = [];
+      const s = startMarker.getLatLng();
+      const g = goalMarker.getLatLng();
+      pts.push([s.lng, s.lat]);
+      stopMarkers.forEach(m => { const p=m.getLatLng(); pts.push([p.lng,p.lat]); });
+      pts.push([g.lng, g.lat]);
+
+      $("routeStatus").textContent = "Route wird berechnet…";
+
+      const coordStr = pts.map(p => p.join(",")).join(";");
+      const url = `https://router.project-osrm.org/route/v1/driving/${coordStr}?overview=full&geometries=geojson&steps=false`;
+
+      try{
+        const res = await fetch(url);
+        const data = await res.json();
+        const r = data?.routes?.[0];
+        if(!r) throw new Error("no route");
+
+        lastRoute = { distance:r.distance, duration:r.duration, geometry:r.geometry };
+
+        $("routeStatus").textContent = "OK";
+        $("dist").textContent = fmtKm(r.distance);
+        $("time").textContent = fmtTime(r.duration);
+
+        if(routeLine) map.removeLayer(routeLine);
+        routeLine = L.geoJSON(r.geometry, { style:{ weight:5, opacity:0.9 } }).addTo(map);
+        map.fitBounds(routeLine.getBounds().pad(0.15));
+      }catch(e){
+        lastRoute = null;
+        $("routeStatus").textContent = "Fehler beim Routing.";
+        $("dist").textContent = "—";
+        $("time").textContent = "—";
+        if(routeLine){ map.removeLayer(routeLine); routeLine=null; }
+      }
+    }
+
+    function makeMarker(latlng, label){
+      const m = L.marker(latlng, { draggable:true }).addTo(map);
+      m.bindPopup(label);
+      m.on("dragend", () => buildRoute());
+      return m;
+    }
+
+    async function setStartAt(latlng){
+      if(startMarker) map.removeLayer(startMarker);
+      startMarker = makeMarker(latlng, "Start");
+      startMarker.openPopup();
+      const addr = await reverseGeocode(latlng.lat, latlng.lng);
+      if(addr) $("fromInput").value = addr;
+      await buildRoute();
+    }
+
+    async function setGoalAt(latlng){
+      if(goalMarker) map.removeLayer(goalMarker);
+      goalMarker = makeMarker(latlng, "Ziel");
+      goalMarker.openPopup();
+      const addr = await reverseGeocode(latlng.lat, latlng.lng);
+      if(addr) $("toInput").value = addr;
+      await buildRoute();
+    }
+
+    function addStopAt(latlng){
+      const sm = makeMarker(latlng, "Stopp");
+      sm.openPopup();
+      stopMarkers.push(sm);
+      buildRoute();
+    }
+
+    function clearStops(){
+      stopMarkers.forEach(m => map.removeLayer(m));
+      stopMarkers = [];
+      buildRoute();
+    }
+
+    function clearAll(){
+      if(startMarker){ map.removeLayer(startMarker); startMarker=null; }
+      if(goalMarker){ map.removeLayer(goalMarker); goalMarker=null; }
+      clearStops();
+      if(routeLine){ map.removeLayer(routeLine); routeLine=null; }
+      lastRoute = null;
+      $("fromInput").value="";
+      $("toInput").value="";
+      $("routeStatus").textContent="—";
+      $("dist").textContent="—";
+      $("time").textContent="—";
+    }
+
+    map.on("click", (e) => {
+      if(mode==="start") setStartAt(e.latlng);
+      else if(mode==="ziel") setGoalAt(e.latlng);
+      else addStopAt(e.latlng);
+    });
+
+    $("btnSetStart").onclick = () => setMode("start");
+    $("btnSetStop").onclick  = () => setMode("stop");
+    $("btnSetGoal").onclick  = () => setMode("ziel");
+    $("btnClearStops").onclick = () => clearStops();
+    $("btnClearAll").onclick = () => clearAll();
+    $("btnCalcRoute").onclick = () => buildRoute();
+
+    $("fromInput").addEventListener("keydown", async (ev) => {
+      if(ev.key !== "Enter") return;
+      ev.preventDefault();
+      const q = $("fromInput").value.trim();
+      if(!q) return;
+      const p = await geocode(q);
+      if(!p) return alert("Start-Adresse nicht gefunden.");
+      await setStartAt({ lat:p.lat, lng:p.lon });
+      map.setView([p.lat, p.lon], 12);
+    });
+
+    $("toInput").addEventListener("keydown", async (ev) => {
+      if(ev.key !== "Enter") return;
+      ev.preventDefault();
+      const q = $("toInput").value.trim();
+      if(!q) return;
+      const p = await geocode(q);
+      if(!p) return alert("Ziel-Adresse nicht gefunden.");
+      await setGoalAt({ lat:p.lat, lng:p.lon });
+      map.setView([p.lat, p.lon], 12);
+    });
+
+    // Save/load
+    const LS_KEY = "urlaubsplaner_trips_v1";
+    function getTrips(){ return safeJsonParse(localStorage.getItem(LS_KEY), []); }
+    function setTrips(v){ localStorage.setItem(LS_KEY, JSON.stringify(v)); }
+
+    function makeTripTitle(){
+      const a = ($("fromInput").value || "Start").split(",")[0].trim();
+      const b = ($("toInput").value || "Ziel").split(",")[0].trim();
+      const d1 = $("dateFrom").value || "—";
+      const d2 = $("dateTo").value || "—";
+      return `${a} → ${b} (${d1} bis ${d2})`;
+    }
+
+    function serializeTrip(){
+      const s = startMarker ? startMarker.getLatLng() : null;
+      const g = goalMarker ? goalMarker.getLatLng() : null;
+      return {
+        id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
+        createdAt: Date.now(),
+        title: makeTripTitle(),
+        dateFrom: $("dateFrom").value || "",
+        dateTo: $("dateTo").value || "",
+        fromText: $("fromInput").value || "",
+        toText: $("toInput").value || "",
+        start: s ? { lat:s.lat, lng:s.lng } : null,
+        goal: g ? { lat:g.lat, lng:g.lng } : null,
+        stops: stopMarkers.map(m => { const p=m.getLatLng(); return {lat:p.lat, lng:p.lng}; }),
+        route: lastRoute ? { distance:lastRoute.distance, duration:lastRoute.duration, geometry:lastRoute.geometry } : null
+      };
+    }
+
+    async function loadTrip(t){
+      clearAll();
+      $("fromInput").value = t.fromText || "";
+      $("toInput").value = t.toText || "";
+      $("dateFrom").value = t.dateFrom || "";
+      $("dateTo").value = t.dateTo || "";
+
+      if(t.start) await setStartAt({ lat:t.start.lat, lng:t.start.lng });
+      if(t.stops?.length) t.stops.forEach(st => addStopAt({ lat:st.lat, lng:st.lng }));
+      if(t.goal) await setGoalAt({ lat:t.goal.lat, lng:t.goal.lng });
+
+      if(t.route?.geometry){
+        if(routeLine) map.removeLayer(routeLine);
+        routeLine = L.geoJSON(t.route.geometry, { style:{ weight:5, opacity:0.9 } }).addTo(map);
+        $("routeStatus").textContent = "OK (geladen)";
+        $("dist").textContent = fmtKm(t.route.distance);
+        $("time").textContent = fmtTime(t.route.duration);
+        map.fitBounds(routeLine.getBounds().pad(0.15));
+      }
+
+      await buildRoute();
+    }
+
+    function renderSaved(){
+      const wrap = $("savedList");
+      const trips = getTrips().sort((a,b)=>b.createdAt-a.createdAt);
+      wrap.innerHTML = "";
+      if(!trips.length){
+        wrap.innerHTML = `<div class="muted" style="padding:10px;">Noch keine Reisen gespeichert.</div>`;
+        return;
+      }
+      trips.forEach(t => {
+        const div = document.createElement("div");
+        div.className = "card";
+        const dist = t.route?.distance ? fmtKm(t.route.distance) : "—";
+        const time = t.route?.duration ? fmtTime(t.route.duration) : "—";
+        div.innerHTML = `
+          <div class="h">
+            <span>${escapeHtml(t.title || "Reise")}</span>
+            <span class="muted">${new Date(t.createdAt).toLocaleString()}</span>
+          </div>
+          <div class="p">
+            Distanz: <b>${dist}</b> · Zeit: <b>${time}</b><br>
+            Start: ${escapeHtml((t.fromText||"").slice(0,80))}<br>
+            Ziel: ${escapeHtml((t.toText||"").slice(0,80))}
+          </div>
+          <div class="actions">
+            <button class="btn secondary small" data-load="${t.id}">Laden</button>
+            <button class="btn danger small" data-del="${t.id}">Löschen</button>
+          </div>
+        `;
+        wrap.appendChild(div);
+      });
+
+      wrap.querySelectorAll("[data-load]").forEach(btn => {
+        btn.onclick = async () => {
+          const id = btn.getAttribute("data-load");
+          const trip = getTrips().find(x => x.id === id);
+          if(!trip) return;
+          switchTab("plan");
+          await loadTrip(trip);
+        };
+      });
+      wrap.querySelectorAll("[data-del]").forEach(btn => {
+        btn.onclick = () => {
+          const id = btn.getAttribute("data-del");
+          setTrips(getTrips().filter(x => x.id !== id));
+          renderSaved();
+        };
+      });
+    }
+
+    $("btnSaveTrip").onclick = () => {
+      if(!startMarker || !goalMarker) return alert("Bitte erst Start und Ziel setzen.");
+      const trips = getTrips();
+      trips.push(serializeTrip());
+      setTrips(trips);
+      renderSaved();
+      alert("Reise gespeichert ✅");
+    };
+
+    $("btnClearStorage").onclick = () => {
+      if(!confirm("Wirklich ALLE gespeicherten Reisen löschen?")) return;
+      setTrips([]);
+      renderSaved();
+    };
+
+    function switchTab(name){
+      document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.dataset.tab === name));
+      $("tab-plan").classList.toggle("hide", name !== "plan");
+      $("tab-saved").classList.toggle("hide", name !== "saved");
+      if(name==="saved") renderSaved();
+    }
+    document.querySelectorAll(".tab").forEach(t => t.onclick = () => switchTab(t.dataset.tab));
+
+    // boot
+    setMode("start");
+    renderSaved();
+
+    // ✅ Service Worker NUR 1x registrieren
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("./sw.js").catch(() => {});
+      });
+    }
+  </script>
 </body>
 </html>
