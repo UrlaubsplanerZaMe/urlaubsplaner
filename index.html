@@ -209,12 +209,6 @@
     }
     .meta strong{ color: var(--text); }
 
-    .hint{
-      margin-top: 10px;
-      font-size: 12.5px;
-      color: var(--sub);
-    }
-
     /* Profilbild */
     .avatarWrap{ display:flex; gap:10px; align-items:center; }
     .avatar{
@@ -254,7 +248,6 @@
       <div class="tab" id="tabPlan" onclick="switchTab('plan')">Tagesplan</div>
       <div class="tab" id="tabCats" onclick="switchTab('cats')">Rubriken</div>
       <div class="tab" id="tabProfile" onclick="switchTab('profile')">Profil</div>
-      <div class="tab" id="tabAlerts" onclick="switchTab('alerts')">Warnungen</div>
     </div>
 
     <div class="content">
@@ -326,10 +319,6 @@
           <span><strong>Zeit:</strong> —</span>
         </div>
 
-        <div class="meta" id="routeAlerts">
-          <span><strong>Warnungen auf Route:</strong> —</span>
-        </div>
-
         <div class="divider"></div>
 
         <label>Stop-Details</label>
@@ -384,62 +373,6 @@
         </div>
       </div>
 
-      <!-- ===== Warnungen ===== -->
-      <div id="viewAlerts" style="display:none;">
-        <div class="card">
-          <div class="itemTitle">Warnungen (lokal)</div>
-          <div class="itemSub">Stau, Panne, Gefahr, Baustelle, Betrugsmasche …</div>
-        </div>
-
-        <label style="margin-top:10px;">Kategorie</label>
-        <select id="alertType" class="field">
-          <option value="stau">Stau</option>
-          <option value="panne">Panne / Hilfe gesucht</option>
-          <option value="baustelle">Baustelle</option>
-          <option value="gefahr">Gefahr</option>
-          <option value="betrug">Betrugsmasche (z.B. Spiegeltrick)</option>
-          <option value="sonstiges">Sonstiges</option>
-        </select>
-
-        <label>Text</label>
-        <textarea id="alertText" class="field" rows="4" style="resize:vertical;" placeholder="Was ist passiert? Kurze, klare Info."></textarea>
-
-        <label>Ort festlegen</label>
-        <div class="twoCol">
-          <button class="btn small" onclick="setAlertPickMode()">Ort per Karte wählen</button>
-          <button class="btn small" onclick="useGpsForAlert()">GPS als Ort</button>
-        </div>
-
-        <label style="margin-top:10px;">Radius (km)</label>
-        <input id="alertRadius" class="field" type="number" step="1" value="10"/>
-
-        <label>Ablauf</label>
-        <select id="alertExpire" class="field">
-          <option value="2">2 Stunden</option>
-          <option value="12">12 Stunden</option>
-          <option value="24" selected>24 Stunden</option>
-          <option value="72">3 Tage</option>
-        </select>
-
-        <div class="row" style="margin-top:10px;">
-          <button class="btn primary" onclick="publishAlert()">Warnung speichern</button>
-          <button class="btn danger" onclick="clearAlerts()">Alle löschen</button>
-        </div>
-
-        <div class="divider"></div>
-
-        <label>Filter</label>
-        <div class="twoCol">
-          <button class="btn small" onclick="showNearbyAlerts()">In meiner Nähe</button>
-          <button class="btn small" onclick="showAllAlerts()">Alle anzeigen</button>
-        </div>
-
-        <label style="margin-top:10px;">Liste</label>
-        <div class="list" id="alertList"></div>
-
-        <div class="hint" id="alertHint">Hinweis: Warnungen sind aktuell nur lokal auf deinem Gerät.</div>
-      </div>
-
     </div>
   </div>
 
@@ -449,9 +382,9 @@
 
   <script>
     // =========================
-    // Storage (Trips + Profile)
+    // Storage
     // =========================
-    const STORAGE_KEY = "urlaubsplaner_state_v1";
+    const STORAGE_KEY = "urlaubsplaner_state_v2";
     function loadState(){
       try {
         const s = JSON.parse(localStorage.getItem(STORAGE_KEY));
@@ -466,20 +399,6 @@
     function saveState(state){ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
 
     // =========================
-    // Alerts Storage (local)
-    // =========================
-    const ALERTS_KEY = "urlaubsplaner_alerts_v1";
-    function loadAlerts(){
-      try { return JSON.parse(localStorage.getItem(ALERTS_KEY)) || []; }
-      catch(e){ return []; }
-    }
-    function saveAlerts(arr){ localStorage.setItem(ALERTS_KEY, JSON.stringify(arr)); }
-    function cleanupExpired(alerts){
-      const now = Date.now();
-      return (alerts || []).filter(a => !a.expiresAt || a.expiresAt > now);
-    }
-
-    // =========================
     // Map setup (Zoom unten rechts)
     // =========================
     const map = L.map('map', { zoomControl: false }).setView([49.8, 9.0], 7);
@@ -487,11 +406,7 @@
     L.control.zoom({ position: 'bottomright' }).addTo(map);
 
     const stopLayer = L.layerGroup().addTo(map);
-    const alertLayer = L.layerGroup().addTo(map);
     let routeLine = null;
-
-    // Für Warnungen-auf-Route Check
-    let lastRouteLatLngs = null;
 
     // =========================
     // App state
@@ -503,8 +418,6 @@
       currentRouteId: null,
       currentStopId: null,
       pickModeStop: false,
-      alertPickMode: false,
-      pendingAlertLatLng: null,
       markersByStopId: new Map()
     };
 
@@ -516,13 +429,6 @@
       return String(str)
         .replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;")
         .replaceAll('"',"&quot;").replaceAll("'","&#039;");
-    }
-    function typeLabel(t){
-      const m = {
-        stau:"Stau", panne:"Panne / Hilfe", baustelle:"Baustelle",
-        gefahr:"Gefahr", betrug:"Betrugsmasche", sonstiges:"Sonstiges"
-      };
-      return m[t] || t;
     }
 
     function defaultCategories(){
@@ -562,16 +468,14 @@
       days: document.getElementById("tabDays"),
       plan: document.getElementById("tabPlan"),
       cats: document.getElementById("tabCats"),
-      profile: document.getElementById("tabProfile"),
-      alerts: document.getElementById("tabAlerts")
+      profile: document.getElementById("tabProfile")
     };
     const views = {
       trip: document.getElementById("viewTrip"),
       days: document.getElementById("viewDays"),
       plan: document.getElementById("viewPlan"),
       cats: document.getElementById("viewCats"),
-      profile: document.getElementById("viewProfile"),
-      alerts: document.getElementById("viewAlerts")
+      profile: document.getElementById("viewProfile")
     };
 
     const tripNameEl = document.getElementById("tripName");
@@ -590,7 +494,6 @@
     const stopListEl = document.getElementById("stopList");
     const stopAddrEl = document.getElementById("stopAddr");
     const routeMetaEl = document.getElementById("routeMeta");
-    const routeAlertsEl = document.getElementById("routeAlerts");
     const stopDetailsEl = document.getElementById("stopDetails");
 
     const newCatNameEl = document.getElementById("newCatName");
@@ -605,14 +508,6 @@
     const profileImgEl = document.getElementById("profileImg");
     const profileBioEl = document.getElementById("profileBio");
 
-    // Alerts
-    const alertTypeEl = document.getElementById("alertType");
-    const alertTextEl = document.getElementById("alertText");
-    const alertRadiusEl = document.getElementById("alertRadius");
-    const alertExpireEl = document.getElementById("alertExpire");
-    const alertListEl = document.getElementById("alertList");
-    const alertHintEl = document.getElementById("alertHint");
-
     // =========================
     // Tabs
     // =========================
@@ -621,9 +516,7 @@
       Object.values(views).forEach(v => v.style.display = "none");
       tabs[name].classList.add("active");
       views[name].style.display = "block";
-
       if(name === "profile") renderProfile();
-      if(name === "alerts"){ showAllAlerts(); }
     }
     window.switchTab = switchTab;
 
@@ -854,37 +747,26 @@
       drawSelectedRoute();
     }
 
-    // Karte: Stops hinzufügen + Alerts Ort wählen
+    // Karte: Stops hinzufügen
     map.on("click", (e) => {
-      // Stop mode
-      if(app.pickModeStop){
-        const r = currentRoute();
-        if(!r) return;
-        const s = makeStop({ name: "Neuer Stop", lat: e.latlng.lat, lon: e.latlng.lng });
-        r.stops.push(s);
-        app.currentStopId = s.id;
+      if(!app.pickModeStop) return;
+      const r = currentRoute();
+      if(!r) return;
 
-        saveState(app.data);
-        renderAll();
-        drawSelectedRoute();
-        focusStop(s.id);
-        return;
-      }
+      const s = makeStop({ name: "Neuer Stop", lat: e.latlng.lat, lon: e.latlng.lng });
+      r.stops.push(s);
+      app.currentStopId = s.id;
 
-      // Alert pick mode
-      if(app.alertPickMode){
-        app.pendingAlertLatLng = { lat: e.latlng.lat, lng: e.latlng.lng };
-        app.alertPickMode = false;
-        alertHintEl.textContent = `Ort gesetzt: ${app.pendingAlertLatLng.lat.toFixed(5)}, ${app.pendingAlertLatLng.lng.toFixed(5)}`;
-        return;
-      }
+      saveState(app.data);
+      renderAll();
+      drawSelectedRoute();
+      focusStop(s.id);
     });
 
     function clearStopsAndRoute(){
       if(routeLine){ map.removeLayer(routeLine); routeLine = null; }
       stopLayer.clearLayers();
       app.markersByStopId.clear();
-      lastRouteLatLngs = null;
     }
 
     function focusStop(stopId){
@@ -902,18 +784,17 @@
       const r = currentRoute();
       if(!r){
         setRouteMeta("—","—","—");
-        setRouteAlertsNone();
         clearStopsAndRoute();
         return;
       }
 
       clearStopsAndRoute();
 
-      // markers
       (r.stops||[]).forEach((s, idx) => {
         const tag = catName(s.categoryId);
         const m = L.marker([s.lat, s.lon], { draggable:true }).addTo(stopLayer);
         app.markersByStopId.set(s.id, m);
+
         m.bindPopup(`<b>${escapeHtml(s.name || ("Stop " + (idx+1)))}</b><br><span style="opacity:.7">${escapeHtml(tag)}</span>`);
         m.on("click", () => selectStop(s.id));
         m.on("dragend", () => {
@@ -927,7 +808,6 @@
 
       if((r.stops||[]).length < 2){
         setRouteMeta(r.name, "—", "—");
-        setRouteAlertsNone();
         return;
       }
 
@@ -935,7 +815,6 @@
       const route = await routeOSRM(pts);
       if(!route){
         setRouteMeta(r.name, "—", "—");
-        setRouteAlertsNone();
         return;
       }
 
@@ -945,10 +824,6 @@
       const km = (route.distance/1000).toFixed(1) + " km";
       const min = Math.round(route.duration/60) + " min";
       setRouteMeta(r.name, km, min);
-
-      // Save geometry for alert-on-route checks
-      lastRouteLatLngs = (route.geometry?.coordinates || []).map(c => ({ lat: c[1], lng: c[0] }));
-      updateRouteAlertsOnRoute();
     }
 
     function setRouteMeta(name, dist, time){
@@ -957,10 +832,6 @@
         <span><strong>Distanz:</strong> ${escapeHtml(dist || "—")}</span>
         <span><strong>Zeit:</strong> ${escapeHtml(time || "—")}</span>
       `;
-    }
-
-    function setRouteAlertsNone(){
-      routeAlertsEl.innerHTML = `<span><strong>Warnungen auf Route:</strong> —</span>`;
     }
 
     async function routeOSRM(points){
@@ -1021,7 +892,6 @@
 
         <label>Bilder (lokal)</label>
         <input class="field" id="sdImg" type="file" accept="image/*" />
-        <div class="hint">Hinweis: Viele Bilder können den Speicher füllen.</div>
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px;">${imgs}</div>
       `;
 
@@ -1133,237 +1003,6 @@
     window.deleteProfile = deleteProfile;
 
     // =========================
-    // Alerts (local)
-    // =========================
-    function setAlertPickMode(){
-      app.alertPickMode = true;
-      app.pendingAlertLatLng = null;
-      alertHintEl.textContent = "Karte antippen: Ort wird für die Warnung gesetzt.";
-    }
-    window.setAlertPickMode = setAlertPickMode;
-
-    function useGpsForAlert(){
-      if(!navigator.geolocation){ alert("GPS wird nicht unterstützt."); return; }
-      alertHintEl.textContent = "GPS wird geholt…";
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          app.pendingAlertLatLng = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-          alertHintEl.textContent = `GPS gesetzt: ${app.pendingAlertLatLng.lat.toFixed(5)}, ${app.pendingAlertLatLng.lng.toFixed(5)}`;
-          map.setView([app.pendingAlertLatLng.lat, app.pendingAlertLatLng.lng], Math.max(map.getZoom(), 12));
-        },
-        () => { alertHintEl.textContent = "GPS nicht verfügbar (Berechtigung/Signal)."; },
-        { enableHighAccuracy: true, timeout: 10000 }
-      );
-    }
-    window.useGpsForAlert = useGpsForAlert;
-
-    function publishAlert(){
-      const type = alertTypeEl.value;
-      const text = (alertTextEl.value || "").trim();
-      const radiusKm = parseFloat(alertRadiusEl.value);
-      const expireH = parseFloat(alertExpireEl.value);
-
-      if(!text){ alert("Bitte Text eingeben."); return; }
-      if(!app.pendingAlertLatLng){ alert("Bitte Ort setzen (Karte oder GPS)."); return; }
-      if(!isFinite(radiusKm) || radiusKm <= 0){ alert("Radius muss > 0 sein."); return; }
-
-      const now = Date.now();
-      const expiresAt = now + expireH * 60 * 60 * 1000;
-
-      const obj = {
-        id: uid(),
-        type, text,
-        lat: app.pendingAlertLatLng.lat,
-        lng: app.pendingAlertLatLng.lng,
-        radiusKm,
-        createdAt: now,
-        expiresAt
-      };
-
-      const arr = cleanupExpired(loadAlerts());
-      arr.unshift(obj);
-      saveAlerts(arr);
-
-      alertTextEl.value = "";
-      app.pendingAlertLatLng = null;
-      alertHintEl.textContent = "Warnung gespeichert (lokal).";
-
-      renderAlerts(arr);
-      drawAlerts(arr);
-
-      // Wenn gerade eine Route offen ist, Hinweis aktualisieren
-      updateRouteAlertsOnRoute();
-    }
-    window.publishAlert = publishAlert;
-
-    function clearAlerts(){
-      if(!confirm("Alle lokalen Warnungen löschen?")) return;
-      localStorage.removeItem(ALERTS_KEY);
-      renderAlerts([]);
-      drawAlerts([]);
-      alertHintEl.textContent = "Alle lokalen Warnungen gelöscht.";
-      updateRouteAlertsOnRoute();
-    }
-    window.clearAlerts = clearAlerts;
-
-    function formatTime(ts){
-      const d = new Date(ts);
-      return d.toLocaleString();
-    }
-
-    function renderAlerts(alerts){
-      alertListEl.innerHTML = "";
-      if(!alerts.length){
-        alertListEl.innerHTML = `<div style="padding:8px; color:rgba(0,0,0,0.55); font-size:13px;">Keine Warnungen.</div>`;
-        return;
-      }
-
-      for(const a of alerts){
-        const el = document.createElement("div");
-        el.className = "item";
-        el.innerHTML = `
-          <div class="itemLeft" style="min-width:0;">
-            <div class="itemTitle">${escapeHtml(typeLabel(a.type))} • ${a.radiusKm} km</div>
-            <div class="itemSub">${escapeHtml(a.text).slice(0,120)}${a.text.length>120?"…":""}</div>
-            <div class="itemSub">Erstellt: ${formatTime(a.createdAt)} • Ablauf: ${formatTime(a.expiresAt)}</div>
-          </div>
-          <div class="itemBtns">
-            <button class="pillBtn pillLoad">Zeigen</button>
-            <button class="pillBtn pillDel">X</button>
-          </div>
-        `;
-        el.querySelector(".pillLoad").onclick = () => map.setView([a.lat, a.lng], 13);
-        el.querySelector(".pillDel").onclick = () => {
-          const arr = cleanupExpired(loadAlerts()).filter(x => x.id !== a.id);
-          saveAlerts(arr);
-          renderAlerts(arr);
-          drawAlerts(arr);
-          updateRouteAlertsOnRoute();
-        };
-        alertListEl.appendChild(el);
-      }
-    }
-
-    function drawAlerts(alerts){
-      alertLayer.clearLayers();
-      for(const a of alerts){
-        const m = L.marker([a.lat, a.lng]).addTo(alertLayer);
-        m.bindPopup(`<b>${escapeHtml(typeLabel(a.type))}</b><br>${escapeHtml(a.text)}<br><span style="opacity:.7">Radius: ${a.radiusKm} km</span>`);
-      }
-    }
-
-    function showAllAlerts(){
-      const arr = cleanupExpired(loadAlerts());
-      saveAlerts(arr);
-      renderAlerts(arr);
-      drawAlerts(arr);
-      alertHintEl.textContent = "Alle (nicht abgelaufenen) Warnungen angezeigt.";
-    }
-    window.showAllAlerts = showAllAlerts;
-
-    function haversineKm(a, b){
-      const R = 6371;
-      const toRad = (x)=> x*Math.PI/180;
-      const dLat = toRad(b.lat - a.lat);
-      const dLng = toRad(b.lng - a.lng);
-      const s1 = Math.sin(dLat/2);
-      const s2 = Math.sin(dLng/2);
-      const q = s1*s1 + Math.cos(toRad(a.lat))*Math.cos(toRad(b.lat))*s2*s2;
-      return 2 * R * Math.asin(Math.sqrt(q));
-    }
-
-    function showNearbyAlerts(){
-      if(!navigator.geolocation){ alert("GPS wird nicht unterstützt."); return; }
-      alertHintEl.textContent = "GPS wird geholt…";
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          const me = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-          const arr = cleanupExpired(loadAlerts());
-          const nearby = arr.filter(a => haversineKm(me, {lat:a.lat, lng:a.lng}) <= (a.radiusKm || 10));
-          renderAlerts(nearby);
-          drawAlerts(nearby);
-          alertHintEl.textContent = `Warnungen in deiner Nähe: ${nearby.length}`;
-        },
-        () => { alertHintEl.textContent = "GPS nicht verfügbar."; },
-        { enableHighAccuracy: true, timeout: 10000 }
-      );
-    }
-    window.showNearbyAlerts = showNearbyAlerts;
-
-    // =========================
-    // Warnungen-auf-Route Check
-    // =========================
-    function toLocalKm(p, refLat){
-      const kLat = 111.32;
-      const kLng = 111.32 * Math.cos(refLat * Math.PI/180);
-      return { x: p.lng * kLng, y: p.lat * kLat };
-    }
-    function pointToSegmentDistanceKm(P, A, B){
-      const refLat = (A.lat + B.lat) / 2;
-      const p = toLocalKm(P, refLat);
-      const a = toLocalKm(A, refLat);
-      const b = toLocalKm(B, refLat);
-
-      const ABx = b.x - a.x, ABy = b.y - a.y;
-      const APx = p.x - a.x, APy = p.y - a.y;
-      const ab2 = ABx*ABx + ABy*ABy;
-
-      let t = ab2 === 0 ? 0 : (APx*ABx + APy*ABy) / ab2;
-      t = Math.max(0, Math.min(1, t));
-
-      const cx = a.x + t*ABx;
-      const cy = a.y + t*ABy;
-      const dx = p.x - cx;
-      const dy = p.y - cy;
-      return Math.sqrt(dx*dx + dy*dy);
-    }
-    function distancePointToPolylineKm(point, latlngs){
-      if(!latlngs || latlngs.length < 2) return Infinity;
-      let min = Infinity;
-      for(let i=0; i<latlngs.length-1; i++){
-        const d = pointToSegmentDistanceKm(point, latlngs[i], latlngs[i+1]);
-        if(d < min) min = d;
-      }
-      return min;
-    }
-
-    function updateRouteAlertsOnRoute(){
-      const r = currentRoute();
-      if(!r || !lastRouteLatLngs || lastRouteLatLngs.length < 2){
-        routeAlertsEl.innerHTML = `<span><strong>Warnungen auf Route:</strong> —</span>`;
-        return;
-      }
-
-      const THRESH_KM = 1.0; // 1 km Nähe zur Route
-      const alerts = cleanupExpired(loadAlerts());
-      const hits = [];
-
-      for(const a of alerts){
-        if(typeof a.lat !== "number" || typeof a.lng !== "number") continue;
-        const d = distancePointToPolylineKm({lat:a.lat, lng:a.lng}, lastRouteLatLngs);
-        if(d <= THRESH_KM) hits.push({ ...a, distKm: d });
-      }
-
-      if(!hits.length){
-        routeAlertsEl.innerHTML = `<span><strong>Warnungen auf Route:</strong> Keine</span>`;
-        return;
-      }
-
-      hits.sort((x,y)=> x.distKm - y.distKm);
-      const top = hits.slice(0, 2);
-
-      routeAlertsEl.innerHTML = `
-        <span><strong>Warnungen auf Route:</strong> ${hits.length}</span>
-        ${top.map(a => `
-          <span style="cursor:pointer; text-decoration:underline;"
-                onclick="map.setView([${a.lat}, ${a.lng}], 13)">
-            ${escapeHtml(typeLabel(a.type))} (${a.distKm.toFixed(2)} km)
-          </span>
-        `).join("")}
-      `;
-    }
-
-    // =========================
     // Render
     // =========================
     function renderTrips(){
@@ -1431,7 +1070,6 @@
         stopListEl.innerHTML = "";
         stopDetailsEl.innerHTML = `<div style="color: rgba(0,0,0,0.55); font-size: 13px;">Wähle einen Stop aus.</div>`;
         setRouteMeta("—","—","—");
-        setRouteAlertsNone();
         return;
       }
 
@@ -1471,7 +1109,6 @@
       if(!r){
         stopListEl.innerHTML = `<div style="padding:8px; color:rgba(0,0,0,0.55); font-size:13px;">Bitte Route auswählen.</div>`;
         setRouteMeta("—","—","—");
-        setRouteAlertsNone();
         stopDetailsEl.innerHTML = `<div style="color: rgba(0,0,0,0.55); font-size: 13px;">Wähle einen Stop aus.</div>`;
         return;
       }
@@ -1479,7 +1116,6 @@
       if(!r.stops || r.stops.length === 0){
         stopListEl.innerHTML = `<div style="padding:8px; color:rgba(0,0,0,0.55); font-size:13px;">Noch keine Stops. Nutze „Stop per Karte“ oder Adresse.</div>`;
         setRouteMeta(r.name, "—", "—");
-        setRouteAlertsNone();
       } else {
         for(const s of r.stops){
           const active = (s.id === app.currentStopId);
@@ -1504,9 +1140,6 @@
       }
 
       renderStopDetails();
-
-      // Wenn Route schon berechnet wurde, Warnungen-auf-Route anzeigen
-      updateRouteAlertsOnRoute();
     }
 
     function renderCats(){
@@ -1552,7 +1185,6 @@
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.register("./sw.js");
     }
-
   </script>
 </body>
 </html>
