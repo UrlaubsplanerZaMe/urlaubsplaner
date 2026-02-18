@@ -1,376 +1,833 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Urlaubsplaner</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Urlaubsplaner</title>
 
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 
-<style>
-  body{margin:0;}
-  #map{height:100vh;}
+  <style>
+    :root{
+      --bg: rgba(255,255,255,0.92);
+      --border: rgba(0,0,0,0.08);
+      --shadow: 0 16px 40px rgba(0,0,0,0.18);
+      --text: #0b0f14;
+      --sub: rgba(11,15,20,0.65);
+      --blue: #0a84ff;
+      --red: #ff3b30;
+      --chip: rgba(10,132,255,0.12);
+      --muted: rgba(0,0,0,0.05);
+    }
 
-  .card{
-    position:absolute; top:14px; left:14px; z-index:1000;
-    width:340px; max-width: calc(100vw - 28px);
-    background:rgba(255,255,255,0.95);
-    border-radius:18px; padding:14px;
-    box-shadow:0 16px 40px rgba(0,0,0,0.18);
-    font-family:-apple-system, system-ui, Segoe UI, Roboto, Arial, sans-serif;
-  }
+    body{ margin:0; }
+    #map{ height:100vh; width:100vw; }
 
-  .row{display:flex; gap:8px; margin-bottom:10px;}
-  .btn{
-    padding:10px; border-radius:12px; border:0; background:#eee;
-    width:100%; font-weight:800; cursor:pointer;
-  }
-  .btnBlue{ background:#0a84ff; color:#fff; }
-  .btnRed{ background:#ff3b30; color:#fff; }
-  .btnSmall{ width:auto; padding:8px 10px; border-radius:10px; font-weight:800; }
+    .card{
+      position:absolute;
+      top:14px; left:14px;
+      z-index:1000;
+      width:360px;
+      max-width: calc(100vw - 28px);
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, Segoe UI, Roboto, Arial, sans-serif;
+      overflow:hidden;
+    }
 
-  .field{
-    width:100%; box-sizing:border-box;
-    padding:12px; border-radius:12px; border:1px solid #ddd;
-    margin-bottom:10px; font-size:14px; outline:none;
-    background:#fff;
-  }
+    .header{
+      padding: 14px 14px 10px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+    }
+    .title{
+      font-size: 16px;
+      font-weight: 800;
+      color: var(--text);
+      display:flex;
+      align-items:center;
+      gap:8px;
+    }
+    .chip{
+      font-size: 12px;
+      font-weight: 800;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: var(--chip);
+      color: var(--blue);
+      border: 1px solid rgba(10,132,255,0.18);
+      white-space: nowrap;
+    }
+    .content{ padding: 0 14px 14px; }
 
-  .titleRow{
-    display:flex; align-items:center; justify-content:space-between; gap:10px;
-    margin-bottom:10px;
-  }
-  .title{ font-size:16px; font-weight:900; }
-  .hint{ font-size:12px; opacity:0.75; margin-top:8px; }
-  .meta{ font-size:13px; margin-top:10px; }
+    label{
+      display:block;
+      margin: 10px 0 6px;
+      font-size: 12px;
+      font-weight: 750;
+      color: var(--sub);
+    }
 
-  .list{
-    margin-top:10px;
-    border-top:1px solid rgba(0,0,0,0.08);
-    padding-top:10px;
-    max-height: 220px;
-    overflow:auto;
-  }
-  .item{
-    display:flex; align-items:center; justify-content:space-between; gap:8px;
-    padding:10px;
-    background:rgba(0,0,0,0.04);
-    border-radius:12px;
-    margin-bottom:8px;
-  }
-  .itemName{
-    font-weight:900;
-    font-size:14px;
-    overflow:hidden;
-    text-overflow:ellipsis;
-    white-space:nowrap;
-    max-width: 170px;
-  }
-  .itemSub{
-    font-size:12px; opacity:0.7; margin-top:2px;
-  }
-  .itemLeft{min-width:0;}
-  .itemBtns{display:flex; gap:6px; flex-shrink:0;}
-</style>
+    .row{ display:flex; gap:8px; }
+    .row > * { flex: 1; }
+
+    .field{
+      width:100%;
+      box-sizing:border-box;
+      border: 1px solid rgba(0,0,0,0.10);
+      background: rgba(255,255,255,0.96);
+      border-radius: 14px;
+      padding: 12px 12px;
+      font-size: 14px;
+      outline:none;
+      color: var(--text);
+    }
+    .field:focus{
+      border-color: rgba(10,132,255,0.45);
+      box-shadow: 0 0 0 4px rgba(10,132,255,0.12);
+    }
+
+    .btn{
+      border:0;
+      border-radius: 14px;
+      padding: 12px 12px;
+      cursor:pointer;
+      font-weight: 850;
+      font-size: 14px;
+      background: rgba(0,0,0,0.06);
+      color: var(--text);
+    }
+    .btn:active{ transform: scale(0.99); }
+    .primary{ background: var(--blue); color:#fff; }
+    .danger{ background: rgba(255,59,48,0.12); color: var(--red); border: 1px solid rgba(255,59,48,0.22); }
+    .small{ padding: 10px 10px; font-size: 13px; }
+
+    .divider{
+      height: 1px;
+      background: rgba(0,0,0,0.07);
+      margin: 12px 0 10px;
+    }
+
+    .meta{
+      display:flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      font-size: 13px;
+      color: var(--sub);
+      line-height: 1.4;
+      background: rgba(255,255,255,0.9);
+      border: 1px solid rgba(0,0,0,0.08);
+      border-radius: 14px;
+      padding: 10px;
+    }
+    .meta strong{ color: var(--text); }
+
+    .hint{
+      margin-top: 10px;
+      font-size: 12.5px;
+      color: var(--sub);
+    }
+
+    .tripList{
+      max-height: 220px;
+      overflow:auto;
+      background: rgba(0,0,0,0.03);
+      border-radius: 14px;
+      padding: 8px;
+      border: 1px solid rgba(0,0,0,0.06);
+    }
+    .tripItem{
+      display:flex;
+      gap:8px;
+      align-items:center;
+      justify-content:space-between;
+      padding:10px;
+      background: rgba(255,255,255,0.9);
+      border: 1px solid rgba(0,0,0,0.07);
+      border-radius: 14px;
+      margin-bottom: 8px;
+    }
+    .tripItem:last-child{ margin-bottom:0; }
+    .tripName{ font-weight: 900; font-size: 14px; color: var(--text); }
+    .tripSub{ font-size: 12px; color: var(--sub); margin-top: 2px; }
+    .tripBtns{ display:flex; gap:6px; }
+    .pillBtn{ padding: 9px 10px; border-radius: 12px; border:0; font-weight: 900; cursor:pointer; }
+    .pillLoad{ background: var(--blue); color:#fff; }
+    .pillDel{ background: rgba(255,59,48,0.12); color: var(--red); border: 1px solid rgba(255,59,48,0.22); }
+
+    .toggle{
+      display:flex; align-items:center; justify-content:space-between; gap:10px;
+      background: rgba(0,0,0,0.04);
+      border: 1px solid rgba(0,0,0,0.06);
+      padding: 10px 12px;
+      border-radius: 14px;
+      cursor: pointer;
+      user-select:none;
+      font-weight: 900;
+      color: var(--text);
+      margin-top: 10px;
+    }
+
+    .adv{
+      display:none;
+      margin-top:10px;
+      padding: 10px;
+      border-radius: 14px;
+      border: 1px solid rgba(0,0,0,0.08);
+      background: rgba(255,255,255,0.9);
+    }
+
+    .fees{
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+      margin-top:8px;
+    }
+    .feeRow{
+      display:flex;
+      gap:8px;
+      align-items:center;
+    }
+    .feeRow input[type="text"]{ flex: 1.5; }
+    .feeRow input[type="number"]{ flex: 1; }
+    .xbtn{
+      flex: 0 0 auto;
+      width:44px;
+      padding: 10px 0;
+      border-radius: 14px;
+      border:0;
+      font-weight: 900;
+      cursor:pointer;
+      background: rgba(0,0,0,0.06);
+    }
+
+    .modeRow{
+      display:flex;
+      gap:8px;
+      margin-top:8px;
+    }
+
+    @media (max-width: 380px){
+      .card{ width: 340px; }
+    }
+  </style>
 </head>
+
 <body>
+  <div class="card">
+    <div class="header">
+      <div class="title">Urlaubsplaner <span class="chip">🚗 Auto</span></div>
+      <button class="btn small" onclick="newTrip()">Neu</button>
+    </div>
 
-<div class="card">
+    <div class="content">
+      <label>Reise</label>
+      <input id="tripName" class="field" placeholder="Name (z.B. Gardasee 2026)" />
 
-  <div class="titleRow">
-    <div class="title">Urlaubsplaner</div>
-    <button class="btn btnSmall" onclick="clearCurrent()">Neu</button>
+      <div class="row" style="margin-top:8px;">
+        <input id="dateFrom" class="field" type="date" />
+        <input id="dateTo" class="field" type="date" />
+      </div>
+
+      <div class="modeRow">
+        <button class="btn small" onclick="setMapPickMode('start')">Start wählen</button>
+        <button class="btn small" onclick="setMapPickMode('stop')">Stopp wählen</button>
+        <button class="btn small" onclick="setMapPickMode('ziel')">Ziel wählen</button>
+      </div>
+
+      <label>Start (Adresse)</label>
+      <input id="startAddr" class="field" placeholder="z.B. Brensbach" />
+
+      <label>Ziel (Adresse)</label>
+      <input id="endAddr" class="field" placeholder="z.B. Verona" />
+
+      <div class="row" style="margin-top:10px;">
+        <button class="btn primary" onclick="buildRoute()">Tag 1 Route berechnen</button>
+        <button class="btn" onclick="saveTrip()">Reise speichern</button>
+      </div>
+
+      <div class="meta" id="meta">
+        <span><strong>Distanz:</strong> —</span>
+        <span><strong>Zeit:</strong> —</span>
+        <span><strong>Sprit:</strong> —</span>
+        <span><strong>Summe:</strong> —</span>
+      </div>
+
+      <div class="toggle" onclick="toggleAdvanced()">
+        <span>Erweiterte Suche</span>
+        <span id="advArrow">▾</span>
+      </div>
+
+      <div class="adv" id="advanced">
+        <label>Fahrzeug & Verbrauch</label>
+        <div class="row">
+          <select id="fuelType" class="field" onchange="recalcCosts()">
+            <option value="diesel">Diesel</option>
+            <option value="benzin">Benzin (E5)</option>
+          </select>
+          <input id="consumption" class="field" type="number" step="0.1" value="6.5" placeholder="l/100km" oninput="recalcCosts()"/>
+        </div>
+
+        <label>Spritpreis (€/l)</label>
+        <div class="row">
+          <input id="fuelPrice" class="field" type="number" step="0.001" placeholder="z.B. 1.799" oninput="recalcCosts()"/>
+          <button class="btn small" onclick="fetchFuel10km()">Preis 10 km um Start</button>
+        </div>
+        <div class="hint" id="fuelHint">
+          Tipp: Startpunkt setzen → „Preis 10 km um Start“. (Tankerkönig/DE)
+        </div>
+
+        <div class="divider"></div>
+
+        <label>Maut & Gebühren (manuell)</label>
+        <div class="fees" id="fees"></div>
+        <div class="row" style="margin-top:8px;">
+          <button class="btn small" onclick="addFee('Maut')">+ Maut</button>
+          <button class="btn small" onclick="addFee('Parken')">+ Parken</button>
+        </div>
+        <div class="row" style="margin-top:8px;">
+          <button class="btn small" onclick="addFee('Sonstiges')">+ Sonstiges</button>
+          <button class="btn small danger" onclick="clearFees()">Gebühren löschen</button>
+        </div>
+
+        <div class="hint">
+          Maut automatisch geht später per spezieller Toll-API. Für jetzt addierst du Posten wie in vielen Apps unter „Kosten“.
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <label>Gespeicherte Reisen</label>
+      <div class="tripList" id="tripList"></div>
+    </div>
   </div>
 
-  <div class="row">
-    <button class="btn" onclick="mode='start'">Start</button>
-    <button class="btn" onclick="mode='stop'">Stopp</button>
-    <button class="btn" onclick="mode='ziel'">Ziel</button>
-  </div>
+  <div id="map"></div>
 
-  <input id="tripName" class="field" placeholder="Reisename (z.B. Gardasee 2026)" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-  <div class="row">
-    <button class="btn btnBlue" onclick="saveTrip()">Reise speichern</button>
-    <button class="btn" onclick="refreshList()">Liste aktualisieren</button>
-  </div>
+  <script>
+    // ====== Tankerkönig (DE) ======
+    // Trage hier deinen Key ein:
+    const TANKERKOENIG_KEY = "HIER_DEIN_API_KEY";
 
-  <div class="meta" id="meta">Setze Start & Ziel (Karte antippen). Marker kann man ziehen.</div>
+    // ====== Storage Keys ======
+    const STORAGE_KEY = "urlaubsplaner_trips_v2";
 
-  <div class="list" id="list"></div>
+    // ====== Map ======
+    const map = L.map('map').setView([49.773, 8.86], 7); // Nähe Hessen/Brensbach grob
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
 
-  <div class="hint">
-    Tipp: gleicher Name = überschreiben. Alles wird lokal auf deinem Gerät gespeichert.
-  </div>
+    // ====== UI ======
+    const metaEl = document.getElementById("meta");
+    const tripListEl = document.getElementById("tripList");
+    const advEl = document.getElementById("advanced");
+    const advArrow = document.getElementById("advArrow");
+    const fuelHint = document.getElementById("fuelHint");
 
-</div>
+    const tripNameEl = document.getElementById("tripName");
+    const dateFromEl = document.getElementById("dateFrom");
+    const dateToEl = document.getElementById("dateTo");
+    const startAddrEl = document.getElementById("startAddr");
+    const endAddrEl = document.getElementById("endAddr");
+    const fuelTypeEl = document.getElementById("fuelType");
+    const consumptionEl = document.getElementById("consumption");
+    const fuelPriceEl = document.getElementById("fuelPrice");
+    const feesEl = document.getElementById("fees");
 
-<div id="map"></div>
+    // ====== State ======
+    let pickMode = null; // "start" | "stop" | "ziel"
+    let startMarker = null;
+    let endMarker = null;
+    let stopMarkers = [];
+    let routeLine = null;
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    let routeKm = 0;
+    let routeMin = 0;
 
-<script>
-  // ---------------- Map ----------------
-  const map = L.map('map').setView([51.1657, 10.4515], 6);
-  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+    // ====== Helpers ======
+    function setMeta(dist, time, fuel, total){
+      metaEl.innerHTML = `
+        <span><strong>Distanz:</strong> ${dist}</span>
+        <span><strong>Zeit:</strong> ${time}</span>
+        <span><strong>Sprit:</strong> ${fuel}</span>
+        <span><strong>Summe:</strong> ${total}</span>
+      `;
+    }
 
-  // ---------------- State ----------------
-  let mode = null;
-  let startMarker = null, endMarker = null;
-  let stopMarkers = [];
-  let routeLine = null;
+    function toggleAdvanced(){
+      const show = advEl.style.display !== "block";
+      advEl.style.display = show ? "block" : "none";
+      advArrow.textContent = show ? "▴" : "▾";
+    }
 
-  const meta = document.getElementById("meta");
-  const listEl = document.getElementById("list");
-  const tripNameEl = document.getElementById("tripName");
+    function setMapPickMode(m){
+      pickMode = m;
+    }
 
-  // ---------------- Helpers ----------------
-  function setMeta(html){ meta.innerHTML = html; }
+    function createDraggableMarker(latlng, label, onMoved){
+      const m = L.marker(latlng, { draggable:true }).addTo(map).bindPopup(label);
+      m.on("dragend", async () => {
+        const p = m.getLatLng();
+        try{
+          const addr = await reverseGeocode(p.lat, p.lng);
+          onMoved(addr);
+        }catch(e){
+          onMoved(`${p.lat.toFixed(6)}, ${p.lng.toFixed(6)}`);
+        }
+        // Route & Kosten automatisch aktualisieren
+        buildRoute();
+      });
+      return m;
+    }
 
-  function createMarker(latlng, label){
-    const m = L.marker(latlng, { draggable: true }).addTo(map).bindPopup(label);
-    m.on("dragend", () => {
-      buildRoute();         // Route automatisch neu
-      autosaveLastViewed(); // merkt sich, was gerade auf der Karte ist
+    async function reverseGeocode(lat, lon){
+      const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`;
+      const res = await fetch(url, { headers: { "Accept":"application/json" }});
+      const data = await res.json();
+      return data.display_name || `${lat.toFixed(6)}, ${lon.toFixed(6)}`;
+    }
+
+    async function geocodeOne(q){
+      const m = q.match(/^\s*(-?\d+(\.\d+)?)\s*,\s*(-?\d+(\.\d+)?)\s*$/);
+      if(m) return { lat: parseFloat(m[1]), lon: parseFloat(m[3]) };
+
+      const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(q)}`;
+      const res = await fetch(url, { headers: { "Accept":"application/json" }});
+      const data = await res.json();
+      if(!data || !data[0]) return null;
+      return { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon) };
+    }
+
+    async function routeOSRM(points){
+      const coordStr = points.map(p => `${p.lon},${p.lat}`).join(";");
+      const url = `https://router.project-osrm.org/route/v1/driving/${coordStr}?overview=full&geometries=geojson&steps=false`;
+      const res = await fetch(url, { headers: { "Accept":"application/json" }});
+      const data = await res.json();
+      return data.routes && data.routes[0] ? data.routes[0] : null;
+    }
+
+    function money(n){
+      if(!isFinite(n)) return "—";
+      return n.toFixed(2) + " €";
+    }
+
+    function feeSum(){
+      const rows = Array.from(feesEl.querySelectorAll(".feeRow"));
+      let sum = 0;
+      for(const r of rows){
+        const val = parseFloat(r.querySelector('input[type="number"]').value);
+        if(isFinite(val)) sum += val;
+      }
+      return sum;
+    }
+
+    function recalcCosts(){
+      if(routeKm <= 0){
+        setMeta("—","—","—","—");
+        return;
+      }
+
+      const cons = parseFloat(consumptionEl.value);
+      const price = parseFloat(fuelPriceEl.value);
+
+      const liters = isFinite(cons) ? (routeKm * cons / 100) : NaN;
+      const fuelCost = (isFinite(liters) && isFinite(price)) ? (liters * price) : NaN;
+
+      const fees = feeSum();
+      const total = (isFinite(fuelCost) ? fuelCost : 0) + fees;
+
+      const fuelText =
+        (isFinite(liters) ? liters.toFixed(1) + " l" : "—") +
+        " / " +
+        (isFinite(fuelCost) ? money(fuelCost) : "—");
+
+      setMeta(
+        routeKm.toFixed(1) + " km",
+        Math.round(routeMin) + " min",
+        fuelText,
+        money(total)
+      );
+
+      // autosave preview (ohne Namen speichern wir nicht in Trips, aber wir könnten…)
+    }
+
+    // ====== Fees (Maut & Gebühren) ======
+    function addFee(label = "Gebühr", amount = 0){
+      const row = document.createElement("div");
+      row.className = "feeRow";
+
+      const name = document.createElement("input");
+      name.type = "text";
+      name.className = "field";
+      name.value = label;
+
+      const val = document.createElement("input");
+      val.type = "number";
+      val.step = "0.01";
+      val.className = "field";
+      val.value = amount;
+
+      val.oninput = recalcCosts;
+      name.oninput = () => {}; // no-op
+
+      const del = document.createElement("button");
+      del.className = "xbtn";
+      del.textContent = "✕";
+      del.onclick = () => { row.remove(); recalcCosts(); };
+
+      row.appendChild(name);
+      row.appendChild(val);
+      row.appendChild(del);
+
+      feesEl.appendChild(row);
+      recalcCosts();
+    }
+
+    function clearFees(){
+      feesEl.innerHTML = "";
+      recalcCosts();
+    }
+
+    // ====== Tankerkönig price fetch (10 km) ======
+    async function fetchCheapest(type, lat, lng){
+      const base = "https://creativecommons.tankerkoenig.de/json/list.php";
+      const url = `${base}?lat=${lat}&lng=${lng}&rad=10&sort=price&type=${type}&apikey=${encodeURIComponent(TANKERKOENIG_KEY)}`;
+      const res = await fetch(url, { headers: { "Accept":"application/json" }});
+      const data = await res.json();
+      if(!data.ok) throw new Error(data.message || "Tankerkönig Fehler");
+      const stations = (data.stations || []).filter(s => typeof s.price === "number" && s.price > 0);
+      return stations.length ? stations[0] : null;
+    }
+
+    async function fetchFuel10km(){
+      if(!startMarker){
+        fuelHint.textContent = "Bitte erst Startpunkt setzen (Marker), dann Preis holen.";
+        return;
+      }
+      if(!TANKERKOENIG_KEY || TANKERKOENIG_KEY.includes("HIER_")){
+        fuelHint.textContent = "Bitte Tankerkönig API-Key im Code eintragen (TANKERKOENIG_KEY).";
+        return;
+      }
+
+      const p = startMarker.getLatLng();
+      fuelHint.textContent = "Hole Preise im Umkreis 10 km…";
+
+      try{
+        if(fuelTypeEl.value === "diesel"){
+          const s = await fetchCheapest("diesel", p.lat, p.lng);
+          if(!s) throw new Error("Kein Diesel-Preis gefunden (10 km).");
+          fuelPriceEl.value = s.price.toFixed(3);
+          fuelHint.textContent = `Diesel: ${s.price.toFixed(3)} €/l — ${s.name} (${s.dist.toFixed(1)} km)`;
+        }else{
+          const s = await fetchCheapest("e5", p.lat, p.lng);
+          if(!s) throw new Error("Kein Benzin-Preis gefunden (10 km).");
+          fuelPriceEl.value = s.price.toFixed(3);
+          fuelHint.textContent = `Benzin (E5): ${s.price.toFixed(3)} €/l — ${s.name} (${s.dist.toFixed(1)} km)`;
+        }
+        recalcCosts();
+      }catch(e){
+        fuelHint.textContent = `Preisabruf fehlgeschlagen. (Falls das im Browser blockiert wird: Preis manuell eintragen.)`;
+      }
+    }
+
+    // ====== Map click pick ======
+    map.on("click", async (e) => {
+      if(!pickMode) return;
+
+      const addr = await reverseGeocode(e.latlng.lat, e.latlng.lng);
+
+      if(pickMode === "start"){
+        startAddrEl.value = addr;
+        if(startMarker) map.removeLayer(startMarker);
+        startMarker = createDraggableMarker(e.latlng, "Start", a => startAddrEl.value = a);
+        startMarker.openPopup();
+      }
+
+      if(pickMode === "ziel"){
+        endAddrEl.value = addr;
+        if(endMarker) map.removeLayer(endMarker);
+        endMarker = createDraggableMarker(e.latlng, "Ziel", a => endAddrEl.value = a);
+        endMarker.openPopup();
+      }
+
+      if(pickMode === "stop"){
+        // Stop marker: we don’t store separate address fields per stop in UI (clean),
+        // but we include them in route & saving.
+        const m = createDraggableMarker(e.latlng, "Stopp", () => {});
+        stopMarkers.push(m);
+        m.openPopup();
+      }
+
+      pickMode = null;
+      buildRoute();
     });
-    return m;
-  }
 
-  function clearMap(){
-    if(startMarker) map.removeLayer(startMarker);
-    if(endMarker) map.removeLayer(endMarker);
-    stopMarkers.forEach(m => map.removeLayer(m));
-    startMarker = null; endMarker = null; stopMarkers = [];
+    // ====== Build route day 1 ======
+    async function buildRoute(){
+      // If markers exist, prefer them. Else, geocode addresses.
+      let points = [];
 
-    if(routeLine) map.removeLayer(routeLine);
-    routeLine = null;
-  }
+      if(startMarker && endMarker){
+        points.push({ lat: startMarker.getLatLng().lat, lon: startMarker.getLatLng().lng });
+        for(const sm of stopMarkers){
+          const ll = sm.getLatLng();
+          points.push({ lat: ll.lat, lon: ll.lng });
+        }
+        points.push({ lat: endMarker.getLatLng().lat, lon: endMarker.getLatLng().lng });
+      } else {
+        const startText = startAddrEl.value.trim();
+        const endText = endAddrEl.value.trim();
+        if(!startText || !endText){
+          routeKm = 0; routeMin = 0;
+          setMeta("—","—","—","—");
+          return;
+        }
+        const s = await geocodeOne(startText);
+        const z = await geocodeOne(endText);
+        if(!s || !z){
+          routeKm = 0; routeMin = 0;
+          setMeta("—","—","—","—");
+          return;
+        }
+        points = [s, z];
 
-  function clearCurrent(){
-    clearMap();
-    tripNameEl.value = "";
-    setMeta("Neue Reise: Setze Start & Ziel.");
-    autosaveLastViewed();
-  }
+        // create markers from geocoded coords (so user can drag afterwards)
+        if(startMarker) map.removeLayer(startMarker);
+        if(endMarker) map.removeLayer(endMarker);
+        stopMarkers.forEach(m => map.removeLayer(m));
+        stopMarkers = [];
 
-  // ---------------- Click: set points ----------------
-  map.on("click", (e) => {
-    if(!mode) return;
+        startMarker = createDraggableMarker([s.lat, s.lon], "Start", a => startAddrEl.value = a);
+        endMarker = createDraggableMarker([z.lat, z.lon], "Ziel", a => endAddrEl.value = a);
+      }
 
-    if(mode === "start"){
+      if(points.length < 2){
+        routeKm = 0; routeMin = 0;
+        setMeta("—","—","—","—");
+        return;
+      }
+
+      const r = await routeOSRM(points);
+      if(!r){
+        routeKm = 0; routeMin = 0;
+        setMeta("—","—","—","—");
+        return;
+      }
+
+      // draw
+      if(routeLine) map.removeLayer(routeLine);
+      routeLine = L.geoJSON(r.geometry, { style: { weight: 6, opacity: 0.95 } }).addTo(map);
+      map.fitBounds(routeLine.getBounds().pad(0.15));
+
+      routeKm = r.distance / 1000;
+      routeMin = r.duration / 60;
+
+      recalcCosts();
+      // autosave into current trip object if exists? we keep it simple: user hits "Reise speichern"
+    }
+
+    // ====== Trips storage (multiple) ======
+    function loadTrips(){
+      try{ return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
+      catch(e){ return []; }
+    }
+    function saveTrips(trips){
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(trips));
+    }
+
+    function tripData(){
+      return {
+        name: tripNameEl.value.trim(),
+        dateFrom: dateFromEl.value || "",
+        dateTo: dateToEl.value || "",
+        startAddr: startAddrEl.value || "",
+        endAddr: endAddrEl.value || "",
+        start: startMarker ? startMarker.getLatLng() : null,
+        end: endMarker ? endMarker.getLatLng() : null,
+        stops: stopMarkers.map(m => m.getLatLng()),
+        fuelType: fuelTypeEl.value,
+        consumption: parseFloat(consumptionEl.value) || 0,
+        fuelPrice: parseFloat(fuelPriceEl.value) || 0,
+        fees: Array.from(feesEl.querySelectorAll(".feeRow")).map(r => ({
+          label: r.querySelector('input[type="text"]').value || "",
+          amount: parseFloat(r.querySelector('input[type="number"]').value) || 0
+        })),
+        updatedAt: Date.now()
+      };
+    }
+
+    function applyTrip(t){
+      // basic fields
+      tripNameEl.value = t.name || "";
+      dateFromEl.value = t.dateFrom || "";
+      dateToEl.value = t.dateTo || "";
+      startAddrEl.value = t.startAddr || "";
+      endAddrEl.value = t.endAddr || "";
+
+      fuelTypeEl.value = t.fuelType || "diesel";
+      consumptionEl.value = (t.consumption ?? 6.5);
+      fuelPriceEl.value = (t.fuelPrice ?? "");
+
+      // fees
+      feesEl.innerHTML = "";
+      (t.fees || []).forEach(f => addFee(f.label || "Gebühr", f.amount || 0));
+
+      // map
       if(startMarker) map.removeLayer(startMarker);
-      startMarker = createMarker(e.latlng, "Start");
-    }
-
-    if(mode === "ziel"){
       if(endMarker) map.removeLayer(endMarker);
-      endMarker = createMarker(e.latlng, "Ziel");
-    }
+      stopMarkers.forEach(m => map.removeLayer(m));
+      stopMarkers = [];
+      if(routeLine) map.removeLayer(routeLine);
+      routeLine = null;
 
-    if(mode === "stop"){
-      const m = createMarker(e.latlng, "Stopp");
-      stopMarkers.push(m);
-    }
+      startMarker = null;
+      endMarker = null;
 
-    buildRoute();
-    autosaveLastViewed();
-    mode = null;
-  });
-
-  // ---------------- Routing (OSRM Auto) ----------------
-  async function routeOSRM(latlngs){
-    const coordStr = latlngs.map(p => `${p.lng},${p.lat}`).join(";");
-    const url = `https://router.project-osrm.org/route/v1/driving/${coordStr}?overview=full&geometries=geojson&steps=false`;
-    const res = await fetch(url);
-    const data = await res.json();
-    return data.routes && data.routes[0] ? data.routes[0] : null;
-  }
-
-  function km(m){ return (m/1000).toFixed(1); }
-  function min(sec){ return Math.round(sec/60); }
-
-  async function buildRoute(){
-    if(!startMarker || !endMarker){
-      setMeta("Setze Start & Ziel. (Stopps optional)");
-      if(routeLine){ map.removeLayer(routeLine); routeLine = null; }
-      return;
-    }
-
-    const points = [startMarker.getLatLng(), ...stopMarkers.map(m=>m.getLatLng()), endMarker.getLatLng()];
-    const r = await routeOSRM(points);
-    if(!r){
-      setMeta("Keine Route gefunden.");
-      return;
-    }
-
-    if(routeLine) map.removeLayer(routeLine);
-    routeLine = L.geoJSON(r.geometry, { style: { weight: 6, opacity: 0.95 } }).addTo(map);
-    map.fitBounds(routeLine.getBounds().pad(0.15));
-
-    setMeta(`Distanz: <b>${km(r.distance)} km</b> • Zeit: <b>${min(r.duration)} min</b>`);
-  }
-
-  // ---------------- Storage: multiple trips ----------------
-  const STORAGE_KEY = "urlaubsplaner_trips_v1";
-  const LAST_KEY = "urlaubsplaner_last_v1";
-
-  function loadTrips(){
-    try{
-      return JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
-    }catch(e){ return []; }
-  }
-
-  function saveTrips(trips){
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(trips));
-  }
-
-  function currentTripData(){
-    return {
-      start: startMarker ? startMarker.getLatLng() : null,
-      end: endMarker ? endMarker.getLatLng() : null,
-      stops: stopMarkers.map(m => m.getLatLng()),
-      updatedAt: Date.now()
-    };
-  }
-
-  function applyTripData(data){
-    clearMap();
-
-    if(data?.start) startMarker = createMarker(data.start, "Start");
-    if(data?.end) endMarker = createMarker(data.end, "Ziel");
-
-    if(Array.isArray(data?.stops)){
-      data.stops.forEach(s => {
-        const m = createMarker(s, "Stopp");
+      if(t.start){
+        startMarker = createDraggableMarker(t.start, "Start", a => startAddrEl.value = a);
+      }
+      if(t.end){
+        endMarker = createDraggableMarker(t.end, "Ziel", a => endAddrEl.value = a);
+      }
+      (t.stops || []).forEach(s => {
+        const m = createDraggableMarker(s, "Stopp", () => {});
         stopMarkers.push(m);
       });
+
+      buildRoute();
     }
 
-    buildRoute();
-    autosaveLastViewed();
-  }
-
-  function saveTrip(){
-    const name = (tripNameEl.value || "").trim();
-    if(!name){
-      setMeta("Bitte erst einen Reisename eingeben.");
-      return;
-    }
-    if(!startMarker || !endMarker){
-      setMeta("Bitte mindestens Start und Ziel setzen, dann speichern.");
-      return;
-    }
-
-    const trips = loadTrips();
-    const data = currentTripData();
-    const idx = trips.findIndex(t => t.name.toLowerCase() === name.toLowerCase());
-
-    if(idx >= 0){
-      trips[idx] = { name, ...data };
-      setMeta(`Gespeichert (überschrieben): <b>${name}</b>`);
-    }else{
-      trips.unshift({ name, ...data }); // neu oben
-      setMeta(`Gespeichert: <b>${name}</b>`);
-    }
-
-    saveTrips(trips);
-    refreshList();
-  }
-
-  function deleteTrip(name){
-    const trips = loadTrips().filter(t => t.name !== name);
-    saveTrips(trips);
-    refreshList();
-  }
-
-  function loadTrip(name){
-    const trips = loadTrips();
-    const t = trips.find(x => x.name === name);
-    if(!t) return;
-    tripNameEl.value = t.name;
-    applyTripData(t);
-    setMeta(`Geladen: <b>${t.name}</b>`);
-  }
-
-  function refreshList(){
-    const trips = loadTrips();
-    listEl.innerHTML = "";
-
-    if(trips.length === 0){
-      listEl.innerHTML = `<div style="opacity:.7;font-size:13px;">Noch keine gespeicherten Reisen.</div>`;
-      return;
-    }
-
-    trips.forEach(t => {
-      const div = document.createElement("div");
-      div.className = "item";
-
-      const left = document.createElement("div");
-      left.className = "itemLeft";
-      left.innerHTML = `
-        <div class="itemName">${escapeHtml(t.name)}</div>
-        <div class="itemSub">${formatDate(t.updatedAt)}</div>
-      `;
-
-      const btns = document.createElement("div");
-      btns.className = "itemBtns";
-
-      const loadBtn = document.createElement("button");
-      loadBtn.className = "btn btnSmall btnBlue";
-      loadBtn.textContent = "Laden";
-      loadBtn.onclick = () => loadTrip(t.name);
-
-      const delBtn = document.createElement("button");
-      delBtn.className = "btn btnSmall btnRed";
-      delBtn.textContent = "Löschen";
-      delBtn.onclick = () => deleteTrip(t.name);
-
-      btns.appendChild(loadBtn);
-      btns.appendChild(delBtn);
-
-      div.appendChild(left);
-      div.appendChild(btns);
-      listEl.appendChild(div);
-    });
-  }
-
-  function escapeHtml(str){
-    return String(str)
-      .replaceAll("&","&amp;")
-      .replaceAll("<","&lt;")
-      .replaceAll(">","&gt;")
-      .replaceAll('"',"&quot;")
-      .replaceAll("'","&#039;");
-  }
-
-  function formatDate(ts){
-    if(!ts) return "";
-    const d = new Date(ts);
-    return d.toLocaleString();
-  }
-
-  // ---------------- Autosave "last viewed" (optional nice touch) ----------------
-  function autosaveLastViewed(){
-    localStorage.setItem(LAST_KEY, JSON.stringify({
-      name: (tripNameEl.value || "").trim(),
-      data: currentTripData()
-    }));
-  }
-
-  function loadLastViewed(){
-    try{
-      const obj = JSON.parse(localStorage.getItem(LAST_KEY));
-      if(obj?.data){
-        if(obj?.name) tripNameEl.value = obj.name;
-        applyTripData(obj.data);
+    function saveTrip(){
+      const data = tripData();
+      if(!data.name){
+        alert("Bitte Reisename eingeben.");
+        return;
       }
-    }catch(e){}
-  }
+      if(!startMarker || !endMarker){
+        alert("Bitte Start & Ziel setzen (Adresse oder Karte), dann speichern.");
+        return;
+      }
 
-  // Init
-  refreshList();
-  loadLastViewed();
-</script>
+      const trips = loadTrips();
+      const idx = trips.findIndex(x => (x.name || "").toLowerCase() === data.name.toLowerCase());
+      if(idx >= 0) trips[idx] = data;
+      else trips.unshift(data);
 
+      saveTrips(trips);
+      renderTripList();
+      alert("Reise gespeichert.");
+    }
+
+    function deleteTrip(name){
+      const trips = loadTrips().filter(t => t.name !== name);
+      saveTrips(trips);
+      renderTripList();
+    }
+
+    function loadTrip(name){
+      const trips = loadTrips();
+      const t = trips.find(x => x.name === name);
+      if(!t) return;
+      applyTrip(t);
+    }
+
+    function renderTripList(){
+      const trips = loadTrips();
+      tripListEl.innerHTML = "";
+      if(!trips.length){
+        tripListEl.innerHTML = `<div style="padding:8px; color:rgba(0,0,0,0.55); font-size:13px;">Noch keine Reisen gespeichert.</div>`;
+        return;
+      }
+
+      for(const t of trips){
+        const item = document.createElement("div");
+        item.className = "tripItem";
+
+        const left = document.createElement("div");
+        left.style.minWidth = "0";
+        left.innerHTML = `
+          <div class="tripName">${escapeHtml(t.name || "")}</div>
+          <div class="tripSub">${escapeHtml(formatRange(t.dateFrom, t.dateTo))}</div>
+        `;
+
+        const btns = document.createElement("div");
+        btns.className = "tripBtns";
+
+        const b1 = document.createElement("button");
+        b1.className = "pillBtn pillLoad";
+        b1.textContent = "Laden";
+        b1.onclick = () => loadTrip(t.name);
+
+        const b2 = document.createElement("button");
+        b2.className = "pillBtn pillDel";
+        b2.textContent = "Löschen";
+        b2.onclick = () => deleteTrip(t.name);
+
+        btns.appendChild(b1);
+        btns.appendChild(b2);
+
+        item.appendChild(left);
+        item.appendChild(btns);
+        tripListEl.appendChild(item);
+      }
+    }
+
+    function escapeHtml(str){
+      return String(str)
+        .replaceAll("&","&amp;")
+        .replaceAll("<","&lt;")
+        .replaceAll(">","&gt;")
+        .replaceAll('"',"&quot;")
+        .replaceAll("'","&#039;");
+    }
+
+    function formatRange(a,b){
+      if(!a && !b) return "—";
+      if(a && !b) return `ab ${a}`;
+      if(!a && b) return `bis ${b}`;
+      return `${a} – ${b}`;
+    }
+
+    function newTrip(){
+      tripNameEl.value = "";
+      dateFromEl.value = "";
+      dateToEl.value = "";
+      startAddrEl.value = "";
+      endAddrEl.value = "";
+      fuelTypeEl.value = "diesel";
+      consumptionEl.value = "6.5";
+      fuelPriceEl.value = "";
+      feesEl.innerHTML = "";
+
+      if(startMarker) map.removeLayer(startMarker);
+      if(endMarker) map.removeLayer(endMarker);
+      stopMarkers.forEach(m => map.removeLayer(m));
+      stopMarkers = [];
+      if(routeLine) map.removeLayer(routeLine);
+      routeLine = null;
+      startMarker = null;
+      endMarker = null;
+
+      routeKm = 0;
+      routeMin = 0;
+      setMeta("—","—","—","—");
+      fuelHint.textContent = "Tipp: Startpunkt setzen → „Preis 10 km um Start“.";
+    }
+
+    // init
+    setMeta("—","—","—","—");
+    renderTripList();
+
+    // default fee examples (optional – auskommentiert)
+    // addFee("Maut", 0);
+    // addFee("Parken", 0);
+  </script>
 </body>
 </html>
