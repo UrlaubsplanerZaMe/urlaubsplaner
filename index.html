@@ -8,34 +8,100 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 
 <style>
-body{margin:0;}
-#map{height:100vh;}
-.card{
-position:absolute;top:14px;left:14px;z-index:1000;
-width:320px;background:#fff;border-radius:18px;
-padding:14px;box-shadow:0 16px 40px rgba(0,0,0,0.2);
-font-family:-apple-system;
-}
-.btn{padding:10px;border-radius:12px;border:0;background:#eee;width:100%;margin-top:6px;font-weight:700;}
-.row{display:flex;gap:6px;margin-bottom:8px;}
-.meta{font-size:13px;margin-top:8px;}
+  body{margin:0;}
+  #map{height:100vh;}
+
+  .card{
+    position:absolute; top:14px; left:14px; z-index:1000;
+    width:340px; max-width: calc(100vw - 28px);
+    background:rgba(255,255,255,0.95);
+    border-radius:18px; padding:14px;
+    box-shadow:0 16px 40px rgba(0,0,0,0.18);
+    font-family:-apple-system, system-ui, Segoe UI, Roboto, Arial, sans-serif;
+  }
+
+  .row{display:flex; gap:8px; margin-bottom:10px;}
+  .btn{
+    padding:10px; border-radius:12px; border:0; background:#eee;
+    width:100%; font-weight:800; cursor:pointer;
+  }
+  .btnBlue{ background:#0a84ff; color:#fff; }
+  .btnRed{ background:#ff3b30; color:#fff; }
+  .btnSmall{ width:auto; padding:8px 10px; border-radius:10px; font-weight:800; }
+
+  .field{
+    width:100%; box-sizing:border-box;
+    padding:12px; border-radius:12px; border:1px solid #ddd;
+    margin-bottom:10px; font-size:14px; outline:none;
+    background:#fff;
+  }
+
+  .titleRow{
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    margin-bottom:10px;
+  }
+  .title{ font-size:16px; font-weight:900; }
+  .hint{ font-size:12px; opacity:0.75; margin-top:8px; }
+  .meta{ font-size:13px; margin-top:10px; }
+
+  .list{
+    margin-top:10px;
+    border-top:1px solid rgba(0,0,0,0.08);
+    padding-top:10px;
+    max-height: 220px;
+    overflow:auto;
+  }
+  .item{
+    display:flex; align-items:center; justify-content:space-between; gap:8px;
+    padding:10px;
+    background:rgba(0,0,0,0.04);
+    border-radius:12px;
+    margin-bottom:8px;
+  }
+  .itemName{
+    font-weight:900;
+    font-size:14px;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+    max-width: 170px;
+  }
+  .itemSub{
+    font-size:12px; opacity:0.7; margin-top:2px;
+  }
+  .itemLeft{min-width:0;}
+  .itemBtns{display:flex; gap:6px; flex-shrink:0;}
 </style>
 </head>
 <body>
 
 <div class="card">
 
-<div class="row">
-<button class="btn" onclick="mode='start'">Start</button>
-<button class="btn" onclick="mode='stop'">Stopp</button>
-<button class="btn" onclick="mode='ziel'">Ziel</button>
-</div>
+  <div class="titleRow">
+    <div class="title">Urlaubsplaner</div>
+    <button class="btn btnSmall" onclick="clearCurrent()">Neu</button>
+  </div>
 
-<button class="btn" onclick="saveRoute()">Route speichern</button>
-<button class="btn" onclick="loadRoute()">Gespeicherte Route laden</button>
-<button class="btn" onclick="clearRoute()">Route löschen</button>
+  <div class="row">
+    <button class="btn" onclick="mode='start'">Start</button>
+    <button class="btn" onclick="mode='stop'">Stopp</button>
+    <button class="btn" onclick="mode='ziel'">Ziel</button>
+  </div>
 
-<div class="meta" id="meta"></div>
+  <input id="tripName" class="field" placeholder="Reisename (z.B. Gardasee 2026)" />
+
+  <div class="row">
+    <button class="btn btnBlue" onclick="saveTrip()">Reise speichern</button>
+    <button class="btn" onclick="refreshList()">Liste aktualisieren</button>
+  </div>
+
+  <div class="meta" id="meta">Setze Start & Ziel (Karte antippen). Marker kann man ziehen.</div>
+
+  <div class="list" id="list"></div>
+
+  <div class="hint">
+    Tipp: gleicher Name = überschreiben. Alles wird lokal auf deinem Gerät gespeichert.
+  </div>
 
 </div>
 
@@ -44,135 +110,266 @@ font-family:-apple-system;
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <script>
+  // ---------------- Map ----------------
+  const map = L.map('map').setView([51.1657, 10.4515], 6);
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
 
-const map=L.map('map').setView([51.1657,10.4515],6);
-L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
+  // ---------------- State ----------------
+  let mode = null;
+  let startMarker = null, endMarker = null;
+  let stopMarkers = [];
+  let routeLine = null;
 
-let mode=null;
-let startMarker,endMarker;
-let stopMarkers=[];
+  const meta = document.getElementById("meta");
+  const listEl = document.getElementById("list");
+  const tripNameEl = document.getElementById("tripName");
 
-function createMarker(latlng,label){
-const m=L.marker(latlng,{draggable:true}).addTo(map).bindPopup(label);
+  // ---------------- Helpers ----------------
+  function setMeta(html){ meta.innerHTML = html; }
 
-m.on("dragend",()=>{
-buildRoute();
-saveRoute();
-});
+  function createMarker(latlng, label){
+    const m = L.marker(latlng, { draggable: true }).addTo(map).bindPopup(label);
+    m.on("dragend", () => {
+      buildRoute();         // Route automatisch neu
+      autosaveLastViewed(); // merkt sich, was gerade auf der Karte ist
+    });
+    return m;
+  }
 
-return m;
-}
+  function clearMap(){
+    if(startMarker) map.removeLayer(startMarker);
+    if(endMarker) map.removeLayer(endMarker);
+    stopMarkers.forEach(m => map.removeLayer(m));
+    startMarker = null; endMarker = null; stopMarkers = [];
 
-map.on("click",e=>{
+    if(routeLine) map.removeLayer(routeLine);
+    routeLine = null;
+  }
 
-if(!mode)return;
+  function clearCurrent(){
+    clearMap();
+    tripNameEl.value = "";
+    setMeta("Neue Reise: Setze Start & Ziel.");
+    autosaveLastViewed();
+  }
 
-if(mode==="start"){
-if(startMarker)map.removeLayer(startMarker);
-startMarker=createMarker(e.latlng,"Start");
-}
+  // ---------------- Click: set points ----------------
+  map.on("click", (e) => {
+    if(!mode) return;
 
-if(mode==="ziel"){
-if(endMarker)map.removeLayer(endMarker);
-endMarker=createMarker(e.latlng,"Ziel");
-}
+    if(mode === "start"){
+      if(startMarker) map.removeLayer(startMarker);
+      startMarker = createMarker(e.latlng, "Start");
+    }
 
-if(mode==="stop"){
-const m=createMarker(e.latlng,"Stopp");
-stopMarkers.push(m);
-}
+    if(mode === "ziel"){
+      if(endMarker) map.removeLayer(endMarker);
+      endMarker = createMarker(e.latlng, "Ziel");
+    }
 
-buildRoute();
-saveRoute();
-mode=null;
+    if(mode === "stop"){
+      const m = createMarker(e.latlng, "Stopp");
+      stopMarkers.push(m);
+    }
 
-});
+    buildRoute();
+    autosaveLastViewed();
+    mode = null;
+  });
 
-async function route(coords){
+  // ---------------- Routing (OSRM Auto) ----------------
+  async function routeOSRM(latlngs){
+    const coordStr = latlngs.map(p => `${p.lng},${p.lat}`).join(";");
+    const url = `https://router.project-osrm.org/route/v1/driving/${coordStr}?overview=full&geometries=geojson&steps=false`;
+    const res = await fetch(url);
+    const data = await res.json();
+    return data.routes && data.routes[0] ? data.routes[0] : null;
+  }
 
-const c=coords.map(c=>`${c.lng},${c.lat}`).join(";");
+  function km(m){ return (m/1000).toFixed(1); }
+  function min(sec){ return Math.round(sec/60); }
 
-const res=await fetch(`https://router.project-osrm.org/route/v1/driving/${c}?overview=full&geometries=geojson`);
-const data=await res.json();
+  async function buildRoute(){
+    if(!startMarker || !endMarker){
+      setMeta("Setze Start & Ziel. (Stopps optional)");
+      if(routeLine){ map.removeLayer(routeLine); routeLine = null; }
+      return;
+    }
 
-return data.routes[0];
-}
+    const points = [startMarker.getLatLng(), ...stopMarkers.map(m=>m.getLatLng()), endMarker.getLatLng()];
+    const r = await routeOSRM(points);
+    if(!r){
+      setMeta("Keine Route gefunden.");
+      return;
+    }
 
-async function buildRoute(){
+    if(routeLine) map.removeLayer(routeLine);
+    routeLine = L.geoJSON(r.geometry, { style: { weight: 6, opacity: 0.95 } }).addTo(map);
+    map.fitBounds(routeLine.getBounds().pad(0.15));
 
-if(!startMarker || !endMarker) return;
+    setMeta(`Distanz: <b>${km(r.distance)} km</b> • Zeit: <b>${min(r.duration)} min</b>`);
+  }
 
-let coords=[startMarker.getLatLng()];
-stopMarkers.forEach(m=>coords.push(m.getLatLng()));
-coords.push(endMarker.getLatLng());
+  // ---------------- Storage: multiple trips ----------------
+  const STORAGE_KEY = "urlaubsplaner_trips_v1";
+  const LAST_KEY = "urlaubsplaner_last_v1";
 
-const r=await route(coords);
+  function loadTrips(){
+    try{
+      return JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+    }catch(e){ return []; }
+  }
 
-if(window.routeLine)map.removeLayer(window.routeLine);
+  function saveTrips(trips){
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(trips));
+  }
 
-window.routeLine=L.geoJSON(r.geometry,{style:{weight:6}}).addTo(map);
-map.fitBounds(window.routeLine.getBounds());
+  function currentTripData(){
+    return {
+      start: startMarker ? startMarker.getLatLng() : null,
+      end: endMarker ? endMarker.getLatLng() : null,
+      stops: stopMarkers.map(m => m.getLatLng()),
+      updatedAt: Date.now()
+    };
+  }
 
-meta.innerHTML=`Distanz ${(r.distance/1000).toFixed(1)} km<br>Zeit ${Math.round(r.duration/60)} min`;
+  function applyTripData(data){
+    clearMap();
 
-}
+    if(data?.start) startMarker = createMarker(data.start, "Start");
+    if(data?.end) endMarker = createMarker(data.end, "Ziel");
 
-// 💾 ROUTE SPEICHERN
-function saveRoute(){
+    if(Array.isArray(data?.stops)){
+      data.stops.forEach(s => {
+        const m = createMarker(s, "Stopp");
+        stopMarkers.push(m);
+      });
+    }
 
-const data={
-start:startMarker?startMarker.getLatLng():null,
-end:endMarker?endMarker.getLatLng():null,
-stops:stopMarkers.map(m=>m.getLatLng())
-};
+    buildRoute();
+    autosaveLastViewed();
+  }
 
-localStorage.setItem("route",JSON.stringify(data));
+  function saveTrip(){
+    const name = (tripNameEl.value || "").trim();
+    if(!name){
+      setMeta("Bitte erst einen Reisename eingeben.");
+      return;
+    }
+    if(!startMarker || !endMarker){
+      setMeta("Bitte mindestens Start und Ziel setzen, dann speichern.");
+      return;
+    }
 
-}
+    const trips = loadTrips();
+    const data = currentTripData();
+    const idx = trips.findIndex(t => t.name.toLowerCase() === name.toLowerCase());
 
-// 📥 ROUTE LADEN
-function loadRoute(){
+    if(idx >= 0){
+      trips[idx] = { name, ...data };
+      setMeta(`Gespeichert (überschrieben): <b>${name}</b>`);
+    }else{
+      trips.unshift({ name, ...data }); // neu oben
+      setMeta(`Gespeichert: <b>${name}</b>`);
+    }
 
-const data=JSON.parse(localStorage.getItem("route"));
-if(!data)return;
+    saveTrips(trips);
+    refreshList();
+  }
 
-clearMap();
+  function deleteTrip(name){
+    const trips = loadTrips().filter(t => t.name !== name);
+    saveTrips(trips);
+    refreshList();
+  }
 
-if(data.start) startMarker=createMarker(data.start,"Start");
-if(data.end) endMarker=createMarker(data.end,"Ziel");
+  function loadTrip(name){
+    const trips = loadTrips();
+    const t = trips.find(x => x.name === name);
+    if(!t) return;
+    tripNameEl.value = t.name;
+    applyTripData(t);
+    setMeta(`Geladen: <b>${t.name}</b>`);
+  }
 
-data.stops.forEach(s=>{
-const m=createMarker(s,"Stopp");
-stopMarkers.push(m);
-});
+  function refreshList(){
+    const trips = loadTrips();
+    listEl.innerHTML = "";
 
-buildRoute();
-}
+    if(trips.length === 0){
+      listEl.innerHTML = `<div style="opacity:.7;font-size:13px;">Noch keine gespeicherten Reisen.</div>`;
+      return;
+    }
 
-// ❌ ROUTE LÖSCHEN
-function clearRoute(){
-localStorage.removeItem("route");
-clearMap();
-}
+    trips.forEach(t => {
+      const div = document.createElement("div");
+      div.className = "item";
 
-// 🧹 KARTE LEEREN
-function clearMap(){
+      const left = document.createElement("div");
+      left.className = "itemLeft";
+      left.innerHTML = `
+        <div class="itemName">${escapeHtml(t.name)}</div>
+        <div class="itemSub">${formatDate(t.updatedAt)}</div>
+      `;
 
-if(startMarker)map.removeLayer(startMarker);
-if(endMarker)map.removeLayer(endMarker);
-stopMarkers.forEach(m=>map.removeLayer(m));
+      const btns = document.createElement("div");
+      btns.className = "itemBtns";
 
-startMarker=null;
-endMarker=null;
-stopMarkers=[];
+      const loadBtn = document.createElement("button");
+      loadBtn.className = "btn btnSmall btnBlue";
+      loadBtn.textContent = "Laden";
+      loadBtn.onclick = () => loadTrip(t.name);
 
-if(window.routeLine)map.removeLayer(window.routeLine);
+      const delBtn = document.createElement("button");
+      delBtn.className = "btn btnSmall btnRed";
+      delBtn.textContent = "Löschen";
+      delBtn.onclick = () => deleteTrip(t.name);
 
-}
+      btns.appendChild(loadBtn);
+      btns.appendChild(delBtn);
 
-// 🚀 BEIM START AUTOMATISCH LADEN
-loadRoute();
+      div.appendChild(left);
+      div.appendChild(btns);
+      listEl.appendChild(div);
+    });
+  }
 
+  function escapeHtml(str){
+    return String(str)
+      .replaceAll("&","&amp;")
+      .replaceAll("<","&lt;")
+      .replaceAll(">","&gt;")
+      .replaceAll('"',"&quot;")
+      .replaceAll("'","&#039;");
+  }
+
+  function formatDate(ts){
+    if(!ts) return "";
+    const d = new Date(ts);
+    return d.toLocaleString();
+  }
+
+  // ---------------- Autosave "last viewed" (optional nice touch) ----------------
+  function autosaveLastViewed(){
+    localStorage.setItem(LAST_KEY, JSON.stringify({
+      name: (tripNameEl.value || "").trim(),
+      data: currentTripData()
+    }));
+  }
+
+  function loadLastViewed(){
+    try{
+      const obj = JSON.parse(localStorage.getItem(LAST_KEY));
+      if(obj?.data){
+        if(obj?.name) tripNameEl.value = obj.name;
+        applyTripData(obj.data);
+      }
+    }catch(e){}
+  }
+
+  // Init
+  refreshList();
+  loadLastViewed();
 </script>
 
 </body>
