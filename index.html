@@ -2,606 +2,1195 @@
 <html lang="de">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover"/>
   <title>Urlaubsplaner</title>
 
   <!-- PWA -->
-  <link rel="manifest" href="manifest.json" />
-  <meta name="theme-color" content="#0A84FF" />
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#2A7FFF">
 
-  <!-- iOS (Add to Home Screen) -->
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-  <meta name="apple-mobile-web-app-title" content="Urlaubsplaner" />
-  <link rel="apple-touch-icon" href="icon-192.png" />
+  <!-- iOS App -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Urlaubsplaner">
+  <link rel="apple-touch-icon" href="icon-192.png">
 
-  <!-- Leaflet -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 
   <style>
     :root{
-      --bg: rgba(255,255,255,0.94);
-      --border: rgba(0,0,0,0.10);
-      --shadow: 0 18px 55px rgba(0,0,0,0.18);
+      --bg: rgba(255,255,255,0.92);
+      --border: rgba(0,0,0,0.08);
+      --shadow: 0 16px 40px rgba(0,0,0,0.18);
       --text: #0b0f14;
       --sub: rgba(11,15,20,0.65);
-      --blue: #0A84FF;
-      --red: #FF3B30;
-      --chip: rgba(10,132,255,0.14);
-      --radius: 18px;
+      --blue: #0a84ff;
+      --red: #ff3b30;
+      --chip: rgba(10,132,255,0.12);
     }
 
-    html, body { height:100%; margin:0; }
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: var(--text); }
+    body{ margin:0; }
+    #map{ height:100vh; width:100vw; }
 
-    #map { height:100vh; width:100vw; }
-
-    /* Zoom controls bottom-right */
-    .leaflet-bottom.leaflet-right { margin: 14px; }
-    .leaflet-control-zoom {
-      box-shadow: var(--shadow);
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      overflow: hidden;
-    }
-    .leaflet-control-zoom a{
-      width: 44px; height: 44px; line-height: 44px;
-      font-size: 20px;
-    }
-
-    /* Panel */
     .panel{
-      position: absolute;
-      top: 14px;
-      left: 14px;
-      width: min(360px, calc(100vw - 28px));
+      position:absolute;
+      top:14px; left:14px;
+      z-index:1000;
+      width:390px;
+      max-width: calc(100vw - 28px);
       background: var(--bg);
       border: 1px solid var(--border);
+      border-radius: 18px;
       box-shadow: var(--shadow);
-      border-radius: var(--radius);
-      padding: 14px;
-      z-index: 1000;
-      backdrop-filter: blur(10px);
-      -webkit-backdrop-filter: blur(10px);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      font-family: -apple-system, BlinkMacSystemFont, system-ui, Segoe UI, Roboto, Arial, sans-serif;
+      overflow:hidden;
     }
 
-    .title{
-      font-weight: 800;
-      font-size: 18px;
-      letter-spacing: -0.02em;
-      margin: 2px 0 10px;
-      display:flex; align-items:center; justify-content:space-between;
+    .header{
+      padding: 14px 14px 10px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
       gap:10px;
+    }
+    .title{
+      font-size: 16px;
+      font-weight: 900;
+      color: var(--text);
+      display:flex;
+      align-items:center;
+      gap:8px;
+    }
+    .chip{
+      font-size: 12px;
+      font-weight: 800;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: var(--chip);
+      color: var(--blue);
+      border: 1px solid rgba(10,132,255,0.18);
+      white-space: nowrap;
     }
 
     .tabs{
       display:flex;
       gap:8px;
-      margin: 10px 0 10px;
+      padding: 0 14px 10px;
+      flex-wrap: wrap;
     }
     .tab{
-      border:1px solid var(--border);
-      background:#fff;
-      border-radius: 999px;
-      padding: 8px 10px;
-      font-size: 13px;
+      flex:1 1 45%;
+      padding:10px 10px;
+      border-radius: 14px;
+      border: 1px solid rgba(0,0,0,0.08);
+      background: rgba(0,0,0,0.04);
+      font-weight: 900;
       cursor:pointer;
+      color: var(--text);
+      text-align:center;
       user-select:none;
+      font-size: 13px;
     }
     .tab.active{
-      background: var(--chip);
-      border-color: rgba(10,132,255,0.35);
+      background: rgba(10,132,255,0.12);
+      border-color: rgba(10,132,255,0.22);
       color: var(--blue);
-      font-weight: 700;
     }
 
-    .row{ display:flex; gap:10px; }
-    .row > * { flex:1; }
+    .content{ padding: 0 14px 14px; }
+
+    label{
+      display:block;
+      margin: 10px 0 6px;
+      font-size: 12px;
+      font-weight: 800;
+      color: var(--sub);
+    }
+
+    .row{ display:flex; gap:8px; }
+    .row > * { flex: 1; }
 
     .field{
-      display:flex; flex-direction:column; gap:6px;
-      margin: 8px 0;
-    }
-    label{ font-size:12px; color: var(--sub); }
-
-    input[type="text"], input[type="date"]{
       width:100%;
-      border:1px solid var(--border);
-      border-radius: 12px;
-      padding: 10px 10px;
+      box-sizing:border-box;
+      border: 1px solid rgba(0,0,0,0.10);
+      background: rgba(255,255,255,0.96);
+      border-radius: 14px;
+      padding: 12px 12px;
       font-size: 14px;
-      background:#fff;
       outline:none;
+      color: var(--text);
     }
-    input[type="text"]:focus, input[type="date"]:focus{
-      border-color: rgba(10,132,255,0.55);
+    .field:focus{
+      border-color: rgba(10,132,255,0.45);
       box-shadow: 0 0 0 4px rgba(10,132,255,0.12);
     }
 
     .btn{
-      width:100%;
-      border: 0;
+      border:0;
       border-radius: 14px;
       padding: 12px 12px;
-      font-size: 14px;
-      font-weight: 700;
       cursor:pointer;
-      background: var(--blue);
-      color: #fff;
-      box-shadow: 0 10px 20px rgba(10,132,255,0.22);
-      user-select:none;
-    }
-    .btn.secondary{
-      background: #fff;
+      font-weight: 900;
+      font-size: 14px;
+      background: rgba(0,0,0,0.06);
       color: var(--text);
-      border:1px solid var(--border);
-      box-shadow:none;
-      font-weight: 700;
     }
-    .btn.danger{
-      background: var(--red);
-      box-shadow: 0 10px 20px rgba(255,59,48,0.18);
-    }
-    .btn.small{
-      padding: 10px 10px;
-      border-radius: 12px;
-      font-size: 13px;
+    .btn:active{ transform: scale(0.99); }
+    .primary{ background: var(--blue); color:#fff; }
+    .danger{ background: rgba(255,59,48,0.12); color: var(--red); border: 1px solid rgba(255,59,48,0.22); }
+    .small{ padding: 10px 10px; font-size: 13px; }
+
+    .divider{
+      height: 1px;
+      background: rgba(0,0,0,0.07);
+      margin: 12px 0 10px;
     }
 
-    .grid2{ display:grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-
-    .modeHint{
-      margin-top: 10px;
-      border-top: 1px solid rgba(0,0,0,0.06);
-      padding-top: 10px;
-      font-size: 13px;
-      color: var(--sub);
-      line-height: 1.35;
-    }
-    .chip{
-      display:inline-flex; align-items:center; gap:8px;
-      padding: 6px 10px;
-      border-radius: 999px;
-      background: var(--chip);
-      color: var(--blue);
-      font-weight: 800;
-      font-size: 12px;
-      margin-left: 8px;
-    }
-
-    .stats{
-      margin-top: 10px;
-      padding: 10px;
+    .card{
+      background: rgba(255,255,255,0.9);
+      border: 1px solid rgba(0,0,0,0.08);
       border-radius: 14px;
-      border: 1px solid rgba(0,0,0,0.06);
-      background: rgba(255,255,255,0.75);
+      padding: 10px;
     }
-    .muted{ color: var(--sub); }
 
     .list{
-      margin-top: 8px;
-      border-top: 1px solid rgba(0,0,0,0.06);
-      padding-top: 10px;
-      display:flex;
-      flex-direction:column;
-      gap:8px;
       max-height: 220px;
       overflow:auto;
+      background: rgba(0,0,0,0.03);
+      border-radius: 14px;
+      padding: 8px;
+      border: 1px solid rgba(0,0,0,0.06);
     }
-    .card{
-      border:1px solid var(--border);
+    .item{
+      display:flex;
+      gap:8px;
+      align-items:center;
+      justify-content:space-between;
+      padding:10px;
+      background: rgba(255,255,255,0.9);
+      border: 1px solid rgba(0,0,0,0.07);
+      border-radius: 14px;
+      margin-bottom: 8px;
+    }
+    .item:last-child{ margin-bottom:0; }
+    .itemLeft{ min-width:0; }
+    .itemTitle{ font-weight: 900; font-size: 14px; color: var(--text); }
+    .itemSub{ font-size: 12px; color: var(--sub); margin-top: 2px; }
+    .itemBtns{ display:flex; gap:6px; }
+    .pillBtn{
+      padding: 9px 10px;
+      border-radius: 12px;
+      border:0;
+      font-weight: 900;
+      cursor:pointer;
+    }
+    .pillLoad{ background: var(--blue); color:#fff; }
+    .pillDel{ background: rgba(255,59,48,0.12); color: var(--red); border: 1px solid rgba(255,59,48,0.22); }
+
+    .twoCol{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:8px;
+    }
+
+    .meta{
+      display:flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      font-size: 13px;
+      color: var(--sub);
+      line-height: 1.4;
+      background: rgba(255,255,255,0.9);
+      border: 1px solid rgba(0,0,0,0.08);
       border-radius: 14px;
       padding: 10px;
-      background:#fff;
+      margin-top: 10px;
     }
-    .card .h{
-      display:flex; align-items:center; justify-content:space-between;
-      gap:10px;
-      font-weight:800;
-      font-size: 13px;
+    .meta strong{ color: var(--text); }
+
+    /* Profilbild */
+    .avatarWrap{ display:flex; gap:10px; align-items:center; }
+    .avatar{
+      width:64px; height:64px;
+      border-radius: 18px;
+      border: 1px solid rgba(0,0,0,0.10);
+      object-fit: cover;
+      background: rgba(0,0,0,0.04);
     }
-    .card .p{ margin-top:6px; font-size: 12px; color: var(--sub); line-height:1.35; }
-    .card .actions{ margin-top:10px; display:flex; gap:8px; }
-    .card .actions .btn{ flex:1; }
 
-    .hide{ display:none; }
+    /* Leaflet Zoom + / - unten rechts, iOS-like */
+    .leaflet-control-zoom{
+      border: 1px solid rgba(0,0,0,0.12) !important;
+      border-radius: 14px !important;
+      overflow:hidden !important;
+      box-shadow: 0 16px 40px rgba(0,0,0,0.18) !important;
+    }
+    .leaflet-control-zoom a{
+      width: 44px !important;
+      height: 44px !important;
+      line-height: 44px !important;
+      font-size: 18px !important;
+    }
 
-    /* Mobile safe areas */
+    /* Safe areas */
     @supports(padding: max(0px)){
-      .panel{
-        top: max(14px, env(safe-area-inset-top));
-        left: max(14px, env(safe-area-inset-left));
-      }
+      .panel{ top: max(14px, env(safe-area-inset-top)); left: max(14px, env(safe-area-inset-left)); }
       .leaflet-bottom.leaflet-right{
-        margin-right: max(14px, env(safe-area-inset-right));
-        margin-bottom: max(14px, env(safe-area-inset-bottom));
+        margin-right: max(10px, env(safe-area-inset-right));
+        margin-bottom: max(10px, env(safe-area-inset-bottom));
       }
     }
   </style>
 </head>
-<body>
-  <div id="map"></div>
 
+<body>
   <div class="panel">
-    <div class="title">
-      <span>Urlaubsplaner</span>
-      <span class="chip" id="modeChip">Modus: Start</span>
+    <div class="header">
+      <div class="title">Urlaubsplaner <span class="chip">🚗 Auto</span></div>
+      <button class="btn small" onclick="newTrip()">Neu</button>
     </div>
 
     <div class="tabs">
-      <div class="tab active" data-tab="plan">Reise planen</div>
-      <div class="tab" data-tab="saved">Gespeichert</div>
+      <div class="tab active" id="tabTrip" onclick="switchTab('trip')">Reise</div>
+      <div class="tab" id="tabDays" onclick="switchTab('days')">Tage</div>
+      <div class="tab" id="tabPlan" onclick="switchTab('plan')">Tagesplan</div>
+      <div class="tab" id="tabCats" onclick="switchTab('cats')">Rubriken</div>
+      <div class="tab" id="tabProfile" onclick="switchTab('profile')">Profil</div>
     </div>
 
-    <!-- TAB: PLAN -->
-    <div id="tab-plan">
-      <div class="field">
-        <label>Von (Start) – Enter zum Suchen</label>
-        <input id="fromInput" type="text" placeholder="z.B. Brensbach" autocomplete="off" />
+    <div class="content">
+      <!-- ===== Reise ===== -->
+      <div id="viewTrip">
+        <label>Reise-Name</label>
+        <input id="tripName" class="field" placeholder="z.B. Gardasee 2026" />
+
+        <div class="row" style="margin-top:8px;">
+          <input id="dateFrom" class="field" type="date" />
+          <input id="dateTo" class="field" type="date" />
+        </div>
+
+        <div class="row" style="margin-top:10px;">
+          <button class="btn primary" onclick="generateDays()">Tage erzeugen</button>
+          <button class="btn" onclick="saveTrip()">Reise speichern</button>
+        </div>
+
+        <div class="divider"></div>
+
+        <label>Gespeicherte Reisen</label>
+        <div class="list" id="tripList"></div>
       </div>
 
-      <div class="field">
-        <label>Nach (Ziel) – Enter zum Suchen</label>
-        <input id="toInput" type="text" placeholder="z.B. Verona" autocomplete="off" />
+      <!-- ===== Tage ===== -->
+      <div id="viewDays" style="display:none;">
+        <div class="card">
+          <div class="itemTitle" id="currentTripLabel">Keine Reise geladen</div>
+          <div class="itemSub" id="currentTripRange">—</div>
+        </div>
+
+        <label style="margin-top:10px;">Tage</label>
+        <div class="list" id="dayList"></div>
       </div>
 
-      <div class="field">
-        <label>Zeitraum</label>
+      <!-- ===== Tagesplan ===== -->
+      <div id="viewPlan" style="display:none;">
+        <div class="card">
+          <div class="itemTitle" id="planHeader">Kein Tag gewählt</div>
+          <div class="itemSub" id="planSub">—</div>
+        </div>
+
+        <label style="margin-top:10px;">Routen am Tag</label>
         <div class="row">
-          <input id="dateFrom" type="date" />
-          <input id="dateTo" type="date" />
+          <input id="newRouteName" class="field" placeholder='z.B. "Anreise", "Mittagstour"'/>
+          <button class="btn primary" onclick="addRoute()">+ Route</button>
+        </div>
+
+        <div class="list" id="routeList" style="max-height: 160px;"></div>
+
+        <div class="divider"></div>
+
+        <label>Stops in der ausgewählten Route</label>
+        <div class="twoCol">
+          <button class="btn small" onclick="setPickModeStop()">Stop per Karte</button>
+          <button class="btn small" onclick="clearPickMode()">Stop-Modus aus</button>
+        </div>
+
+        <div class="row" style="margin-top:8px;">
+          <input id="stopAddr" class="field" placeholder="Adresse suchen (optional)" />
+          <button class="btn small" onclick="addStopByAddress()">+ Stop</button>
+        </div>
+
+        <div class="list" id="stopList" style="max-height: 200px;"></div>
+
+        <div class="meta" id="routeMeta">
+          <span><strong>Route:</strong> —</span>
+          <span><strong>Distanz:</strong> —</span>
+          <span><strong>Zeit:</strong> —</span>
+        </div>
+
+        <div class="divider"></div>
+
+        <label>Stop-Details</label>
+        <div class="card" id="stopDetails">
+          <div style="color: rgba(0,0,0,0.55); font-size: 13px;">Wähle einen Stop aus.</div>
         </div>
       </div>
 
-      <div class="grid2">
-        <button class="btn small" id="btnSetStart">📍 Startpunkt setzen</button>
-        <button class="btn small secondary" id="btnSetStop">🟡 Zwischenstopp setzen</button>
-        <button class="btn small" id="btnSetGoal">🏁 Ziel setzen</button>
-        <button class="btn small secondary" id="btnClearStops">🧹 Zwischenstopps löschen</button>
+      <!-- ===== Rubriken ===== -->
+      <div id="viewCats" style="display:none;">
+        <label>Neue Rubrik hinzufügen</label>
+        <div class="row">
+          <input id="newCatName" class="field" placeholder="z.B. Fotospot, Kinder, Badestelle" />
+          <button class="btn primary" onclick="addCategory()">+ Rubrik</button>
+        </div>
+
+        <label style="margin-top:10px;">Rubriken</label>
+        <div class="list" id="catList"></div>
       </div>
 
-      <div style="margin-top:10px;">
-        <button class="btn danger" id="btnClearAll">🗑️ Alles löschen</button>
+      <!-- ===== Profil ===== -->
+      <div id="viewProfile" style="display:none;">
+        <div class="card">
+          <div class="avatarWrap">
+            <img id="profileAvatar" class="avatar" alt="Profilbild" />
+            <div style="flex:1;">
+              <div class="itemTitle" id="profileTitle">Kein Profil</div>
+              <div class="itemSub" id="profileSub">Erstelle dein Profil für später.</div>
+            </div>
+          </div>
+        </div>
+
+        <label style="margin-top:10px;">Name / Nickname</label>
+        <input id="profileName" class="field" placeholder="z.B. Max, Familie Müller, RoadtripCrew" />
+
+        <label>Reiseart</label>
+        <select id="travelType" class="field">
+          <option value="alleine">Alleine</option>
+          <option value="freunde">Mit Freunden</option>
+          <option value="familie">Mit Familie</option>
+        </select>
+
+        <label>Profilbild</label>
+        <input id="profileImg" class="field" type="file" accept="image/*" />
+
+        <label>Kurztext (optional)</label>
+        <textarea id="profileBio" class="field" rows="4" style="resize:vertical;" placeholder="z.B. Wir lieben Camping und Natur..."></textarea>
+
+        <div class="row" style="margin-top:10px;">
+          <button class="btn primary" onclick="saveProfile()">Profil speichern</button>
+          <button class="btn danger" onclick="deleteProfile()">Profil löschen</button>
+        </div>
       </div>
 
-      <div class="stats">
-        <div><b>Route:</b> <span class="muted" id="routeStatus">—</span></div>
-        <div class="muted" style="margin-top:6px;">Distanz: <b id="dist">—</b> · Zeit: <b id="time">—</b></div>
-      </div>
-
-      <div style="margin-top:10px;" class="grid2">
-        <button class="btn secondary" id="btnCalcRoute">Route berechnen</button>
-        <button class="btn" id="btnSaveTrip">Reise speichern</button>
-      </div>
-
-      <div class="modeHint">
-        Tipp: Button drücken → auf die Karte tippen. Marker sind verschiebbar (ziehen) und die Route wird neu berechnet.
-      </div>
-    </div>
-
-    <!-- TAB: SAVED -->
-    <div id="tab-saved" class="hide">
-      <div class="muted" style="font-size:13px;">Gespeicherte Reisen (nur auf diesem Gerät).</div>
-      <div class="list" id="savedList"></div>
-      <div style="margin-top:10px;">
-        <button class="btn danger" id="btnClearStorage">Alles löschen</button>
-      </div>
     </div>
   </div>
 
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script>
-    const $ = (id) => document.getElementById(id);
+  <div id="map"></div>
 
-    function fmtKm(m){ return (m/1000).toFixed(1).replace(".", ",") + " km"; }
-    function fmtTime(s){
-      const h = Math.floor(s/3600);
-      const m = Math.round((s - h*3600)/60);
-      return (h>0? `${h} h `:"") + `${m} min`;
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <script>
+    // =========================
+    // Storage
+    // =========================
+    const STORAGE_KEY = "urlaubsplaner_state_v3";
+    function loadState(){
+      try {
+        const s = JSON.parse(localStorage.getItem(STORAGE_KEY));
+        if(!s || typeof s !== "object") return { trips: [], profile: null };
+        if(!Array.isArray(s.trips)) s.trips = [];
+        if(!("profile" in s)) s.profile = null;
+        return s;
+      } catch(e){
+        return { trips: [], profile: null };
+      }
     }
-    function safeJsonParse(str, fb){ try{ return JSON.parse(str); } catch { return fb; } }
-    function escapeHtml(s){
-      return String(s).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;")
+    function saveState(state){ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+
+    // =========================
+    // Map setup (Zoom unten rechts)
+    // =========================
+    const map = L.map('map', { zoomControl: false }).setView([49.8, 9.0], 7);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+    L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+    const stopLayer = L.layerGroup().addTo(map);
+    let routeLine = null;
+
+    // =========================
+    // App state
+    // =========================
+    const app = {
+      data: loadState(),
+      currentTripId: null,
+      currentDayId: null,
+      currentRouteId: null,
+      currentStopId: null,
+      pickModeStop: false,
+      markersByStopId: new Map()
+    };
+
+    // =========================
+    // Helpers
+    // =========================
+    function uid(){ return Math.random().toString(36).slice(2,10) + "_" + Date.now().toString(36); }
+    function escapeHtml(str){
+      return String(str)
+        .replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;")
         .replaceAll('"',"&quot;").replaceAll("'","&#039;");
     }
 
-    // Map
-    const map = L.map("map", { zoomControl:false }).setView([51.505, 10], 6);
-    L.control.zoom({ position:"bottomright" }).addTo(map);
-    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom:19 }).addTo(map);
-
-    // State
-    let mode = "start"; // start | stop | ziel
-    let startMarker = null;
-    let goalMarker = null;
-    let stopMarkers = [];
-    let routeLine = null;
-    let lastRoute = null;
-
-    function setMode(m){
-      mode = m;
-      $("modeChip").textContent = m==="start" ? "Modus: Start" : (m==="stop" ? "Modus: Zwischenstopp" : "Modus: Ziel");
+    function defaultCategories(){
+      return [
+        { id: uid(), name: "Essen" },
+        { id: uid(), name: "Sehenswürdigkeit" },
+        { id: uid(), name: "Tankstelle" },
+        { id: uid(), name: "Parken" },
+        { id: uid(), name: "Einkauf" },
+        { id: uid(), name: "Pause" }
+      ];
     }
 
-    // Geocode
-    async function geocode(q){
-      const url = "https://nominatim.openstreetmap.org/search?format=json&limit=1&q=" + encodeURIComponent(q);
-      const res = await fetch(url, { headers:{ "Accept":"application/json" } });
+    function currentTrip(){ return app.data.trips.find(t => t.id === app.currentTripId) || null; }
+    function currentDay(){
+      const t = currentTrip();
+      return t?.days?.find(d => d.id === app.currentDayId) || null;
+    }
+    function currentRoute(){
+      const d = currentDay();
+      return d?.routes?.find(r => r.id === app.currentRouteId) || null;
+    }
+    function currentStop(){
+      const r = currentRoute();
+      return r?.stops?.find(s => s.id === app.currentStopId) || null;
+    }
+    function catName(catId){
+      const t = currentTrip();
+      return t?.categories?.find(c => c.id === catId)?.name || "Ohne";
+    }
+
+    // =========================
+    // UI refs
+    // =========================
+    const tabs = {
+      trip: document.getElementById("tabTrip"),
+      days: document.getElementById("tabDays"),
+      plan: document.getElementById("tabPlan"),
+      cats: document.getElementById("tabCats"),
+      profile: document.getElementById("tabProfile")
+    };
+    const views = {
+      trip: document.getElementById("viewTrip"),
+      days: document.getElementById("viewDays"),
+      plan: document.getElementById("viewPlan"),
+      cats: document.getElementById("viewCats"),
+      profile: document.getElementById("viewProfile")
+    };
+
+    const tripNameEl = document.getElementById("tripName");
+    const dateFromEl = document.getElementById("dateFrom");
+    const dateToEl = document.getElementById("dateTo");
+    const tripListEl = document.getElementById("tripList");
+
+    const currentTripLabel = document.getElementById("currentTripLabel");
+    const currentTripRange = document.getElementById("currentTripRange");
+    const dayListEl = document.getElementById("dayList");
+
+    const planHeader = document.getElementById("planHeader");
+    const planSub = document.getElementById("planSub");
+    const newRouteNameEl = document.getElementById("newRouteName");
+    const routeListEl = document.getElementById("routeList");
+    const stopListEl = document.getElementById("stopList");
+    const stopAddrEl = document.getElementById("stopAddr");
+    const routeMetaEl = document.getElementById("routeMeta");
+    const stopDetailsEl = document.getElementById("stopDetails");
+
+    const newCatNameEl = document.getElementById("newCatName");
+    const catListEl = document.getElementById("catList");
+
+    // Profile
+    const profileAvatarEl = document.getElementById("profileAvatar");
+    const profileTitleEl = document.getElementById("profileTitle");
+    const profileSubEl = document.getElementById("profileSub");
+    const profileNameEl = document.getElementById("profileName");
+    const travelTypeEl = document.getElementById("travelType");
+    const profileImgEl = document.getElementById("profileImg");
+    const profileBioEl = document.getElementById("profileBio");
+
+    // =========================
+    // Tabs
+    // =========================
+    function switchTab(name){
+      Object.values(tabs).forEach(t => t.classList.remove("active"));
+      Object.values(views).forEach(v => v.style.display = "none");
+      tabs[name].classList.add("active");
+      views[name].style.display = "block";
+      if(name === "profile") renderProfile();
+    }
+    window.switchTab = switchTab;
+
+    // =========================
+    // Trip CRUD
+    // =========================
+    function newTrip(){
+      app.currentTripId = null;
+      app.currentDayId = null;
+      app.currentRouteId = null;
+      app.currentStopId = null;
+      tripNameEl.value = "";
+      dateFromEl.value = "";
+      dateToEl.value = "";
+      clearStopsAndRoute();
+      renderAll();
+      switchTab("trip");
+    }
+    window.newTrip = newTrip;
+
+    function saveTrip(){
+      const name = (tripNameEl.value || "").trim();
+      const dateFrom = dateFromEl.value || "";
+      const dateTo = dateToEl.value || "";
+      if(!name){ alert("Bitte Reise-Name eingeben."); return; }
+      if(!dateFrom || !dateTo){ alert("Bitte Datum von/bis auswählen."); return; }
+
+      let t = currentTrip();
+      if(!t){
+        t = { id: uid(), name, dateFrom, dateTo, categories: defaultCategories(), days: [] };
+        app.data.trips.unshift(t);
+        app.currentTripId = t.id;
+      } else {
+        t.name = name; t.dateFrom = dateFrom; t.dateTo = dateTo;
+        if(!Array.isArray(t.categories) || t.categories.length === 0) t.categories = defaultCategories();
+        if(!Array.isArray(t.days)) t.days = [];
+      }
+      saveState(app.data);
+      renderAll();
+      alert("Reise gespeichert.");
+    }
+    window.saveTrip = saveTrip;
+
+    function deleteTrip(id){
+      app.data.trips = app.data.trips.filter(t => t.id !== id);
+      if(app.currentTripId === id) newTrip();
+      saveState(app.data);
+      renderAll();
+    }
+
+    function loadTrip(id){
+      const t = app.data.trips.find(x => x.id === id);
+      if(!t) return;
+
+      app.currentTripId = t.id;
+      app.currentDayId = t.days?.[0]?.id || null;
+      app.currentRouteId = t.days?.[0]?.routes?.[0]?.id || null;
+      app.currentStopId = null;
+
+      tripNameEl.value = t.name || "";
+      dateFromEl.value = t.dateFrom || "";
+      dateToEl.value = t.dateTo || "";
+
+      clearStopsAndRoute();
+      renderAll();
+      switchTab("days");
+    }
+
+    // =========================
+    // Days
+    // =========================
+    function dateToISO(d){
+      const y = d.getFullYear();
+      const m = String(d.getMonth()+1).padStart(2,"0");
+      const dd = String(d.getDate()).padStart(2,"0");
+      return `${y}-${m}-${dd}`;
+    }
+
+    function generateDays(){
+      const name = (tripNameEl.value || "").trim();
+      if(!name){ alert("Bitte erst Reise-Name eingeben."); return; }
+      saveTrip();
+
+      const t = currentTrip();
+      const from = new Date(t.dateFrom + "T00:00:00");
+      const to = new Date(t.dateTo + "T00:00:00");
+      if(isNaN(from.getTime()) || isNaN(to.getTime()) || from > to){
+        alert("Datum stimmt nicht. Bitte prüfen.");
+        return;
+      }
+
+      const existingByDate = new Map((t.days||[]).map(d => [d.date, d]));
+      const days = [];
+      let cur = new Date(from);
+      let idx = 1;
+      while(cur <= to){
+        const iso = dateToISO(cur);
+        const ex = existingByDate.get(iso);
+        if(ex){
+          ex.dayIndex = idx;
+          if(!Array.isArray(ex.routes)) ex.routes = [];
+          days.push(ex);
+        }else{
+          days.push({ id: uid(), date: iso, dayIndex: idx, routes: [] });
+        }
+        cur.setDate(cur.getDate()+1);
+        idx++;
+      }
+
+      t.days = days;
+      app.currentDayId = t.days[0]?.id || null;
+      app.currentRouteId = t.days[0]?.routes?.[0]?.id || null;
+      app.currentStopId = null;
+
+      saveState(app.data);
+      renderAll();
+      switchTab("days");
+    }
+    window.generateDays = generateDays;
+
+    function selectDay(dayId){
+      app.currentDayId = dayId;
+      const d = currentDay();
+      app.currentRouteId = d?.routes?.[0]?.id || null;
+      app.currentStopId = null;
+      clearStopsAndRoute();
+      renderAll();
+      switchTab("plan");
+      drawSelectedRoute();
+    }
+
+    // =========================
+    // Routes / Stops
+    // =========================
+    function addRoute(){
+      const t = currentTrip();
+      const d = currentDay();
+      if(!t || !d){ alert("Bitte zuerst Reise laden und Tag wählen."); return; }
+      const nm = (newRouteNameEl.value || "").trim() || "Route";
+      const r = { id: uid(), name: nm, stops: [] };
+      d.routes.unshift(r);
+      newRouteNameEl.value = "";
+      app.currentRouteId = r.id;
+      app.currentStopId = null;
+
+      saveState(app.data);
+      renderAll();
+      clearStopsAndRoute();
+      drawSelectedRoute();
+    }
+    window.addRoute = addRoute;
+
+    function selectRoute(routeId){
+      app.currentRouteId = routeId;
+      app.currentStopId = null;
+      saveState(app.data);
+      renderAll();
+      clearStopsAndRoute();
+      drawSelectedRoute();
+    }
+
+    function deleteRoute(routeId){
+      const d = currentDay();
+      if(!d) return;
+      d.routes = d.routes.filter(r => r.id !== routeId);
+      if(app.currentRouteId === routeId){
+        app.currentRouteId = d.routes?.[0]?.id || null;
+        app.currentStopId = null;
+      }
+      saveState(app.data);
+      renderAll();
+      clearStopsAndRoute();
+      drawSelectedRoute();
+    }
+
+    function setPickModeStop(){
+      if(!currentRoute()){ alert("Bitte zuerst eine Route auswählen/erstellen."); return; }
+      app.pickModeStop = true;
+      alert("Stop-Modus aktiv: Tippe auf die Karte, um einen Stop hinzuzufügen.");
+    }
+    window.setPickModeStop = setPickModeStop;
+
+    function clearPickMode(){ app.pickModeStop = false; }
+    window.clearPickMode = clearPickMode;
+
+    function makeStop({name, lat, lon}){
+      const t = currentTrip();
+      const catId = t?.categories?.[0]?.id || null;
+      return { id: uid(), name: name || "Stop", categoryId: catId, note: "", lat, lon, images: [] };
+    }
+
+    async function addStopByAddress(){
+      const r = currentRoute();
+      if(!r){ alert("Bitte zuerst eine Route auswählen."); return; }
+      const q = (stopAddrEl.value || "").trim();
+      if(!q){ alert("Bitte Adresse eingeben."); return; }
+
+      const g = await geocodeOne(q);
+      if(!g){ alert("Adresse nicht gefunden."); return; }
+
+      const s = makeStop({ name: q, lat: g.lat, lon: g.lon });
+      r.stops.push(s);
+      stopAddrEl.value = "";
+      app.currentStopId = s.id;
+
+      saveState(app.data);
+      renderAll();
+      drawSelectedRoute();
+      focusStop(s.id);
+    }
+    window.addStopByAddress = addStopByAddress;
+
+    function selectStop(stopId){
+      app.currentStopId = stopId;
+      renderStopDetails();
+      focusStop(stopId);
+    }
+
+    function deleteStop(stopId){
+      const r = currentRoute();
+      if(!r) return;
+      r.stops = r.stops.filter(s => s.id !== stopId);
+      if(app.currentStopId === stopId) app.currentStopId = null;
+
+      saveState(app.data);
+      renderAll();
+      clearStopsAndRoute();
+      drawSelectedRoute();
+    }
+
+    // Karte: Stops hinzufügen
+    map.on("click", (e) => {
+      if(!app.pickModeStop) return;
+      const r = currentRoute();
+      if(!r) return;
+
+      const s = makeStop({ name: "Neuer Stop", lat: e.latlng.lat, lon: e.latlng.lng });
+      r.stops.push(s);
+      app.currentStopId = s.id;
+
+      saveState(app.data);
+      renderAll();
+      drawSelectedRoute();
+      focusStop(s.id);
+    });
+
+    function clearStopsAndRoute(){
+      if(routeLine){ map.removeLayer(routeLine); routeLine = null; }
+      stopLayer.clearLayers();
+      app.markersByStopId.clear();
+    }
+
+    function focusStop(stopId){
+      const m = app.markersByStopId.get(stopId);
+      if(m){
+        map.setView(m.getLatLng(), Math.max(map.getZoom(), 12));
+        m.openPopup();
+      }
+    }
+
+    // =========================
+    // Routing + draw
+    // =========================
+    async function drawSelectedRoute(){
+      const r = currentRoute();
+      if(!r){
+        setRouteMeta("—","—","—");
+        clearStopsAndRoute();
+        return;
+      }
+
+      clearStopsAndRoute();
+
+      (r.stops||[]).forEach((s, idx) => {
+        const tag = catName(s.categoryId);
+        const m = L.marker([s.lat, s.lon], { draggable:true }).addTo(stopLayer);
+        app.markersByStopId.set(s.id, m);
+
+        m.bindPopup(`<b>${escapeHtml(s.name || ("Stop " + (idx+1)))}</b><br><span style="opacity:.7">${escapeHtml(tag)}</span>`);
+        m.on("click", () => selectStop(s.id));
+        m.on("dragend", () => {
+          const p = m.getLatLng();
+          s.lat = p.lat; s.lon = p.lng;
+          saveState(app.data);
+          renderAll();
+          drawSelectedRoute();
+        });
+      });
+
+      if((r.stops||[]).length < 2){
+        setRouteMeta(r.name, "—", "—");
+        return;
+      }
+
+      const pts = r.stops.map(s => ({ lat: s.lat, lon: s.lon }));
+      const route = await routeOSRM(pts);
+      if(!route){
+        setRouteMeta(r.name, "—", "—");
+        return;
+      }
+
+      routeLine = L.geoJSON(route.geometry, { style: { weight: 6, opacity: 0.95 } }).addTo(map);
+      map.fitBounds(routeLine.getBounds().pad(0.15));
+
+      const km = (route.distance/1000).toFixed(1) + " km";
+      const min = Math.round(route.duration/60) + " min";
+      setRouteMeta(r.name, km, min);
+    }
+
+    function setRouteMeta(name, dist, time){
+      routeMetaEl.innerHTML = `
+        <span><strong>Route:</strong> ${escapeHtml(name || "—")}</span>
+        <span><strong>Distanz:</strong> ${escapeHtml(dist || "—")}</span>
+        <span><strong>Zeit:</strong> ${escapeHtml(time || "—")}</span>
+      `;
+    }
+
+    async function routeOSRM(points){
+      const coordStr = points.map(p => `${p.lon},${p.lat}`).join(";");
+      const url = `https://router.project-osrm.org/route/v1/driving/${coordStr}?overview=full&geometries=geojson&steps=false`;
+      const res = await fetch(url, { headers: { "Accept":"application/json" }});
+      const data = await res.json();
+      return data.routes && data.routes[0] ? data.routes[0] : null;
+    }
+
+    async function geocodeOne(q){
+      const m = q.match(/^\s*(-?\d+(\.\d+)?)\s*,\s*(-?\d+(\.\d+)?)\s*$/);
+      if(m) return { lat: parseFloat(m[1]), lon: parseFloat(m[3]) };
+
+      const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(q)}`;
+      const res = await fetch(url, { headers: { "Accept":"application/json" }});
       const data = await res.json();
       if(!data || !data[0]) return null;
       return { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon) };
     }
-    async function reverseGeocode(lat, lon){
-      const url = "https://nominatim.openstreetmap.org/reverse?format=json&lat=" + encodeURIComponent(lat) + "&lon=" + encodeURIComponent(lon);
-      const res = await fetch(url, { headers:{ "Accept":"application/json" } });
-      const data = await res.json();
-      return data?.display_name || null;
-    }
 
-    // Routing (OSRM driving)
-    async function buildRoute(){
-      if(!startMarker || !goalMarker){
-        lastRoute = null;
-        $("routeStatus").textContent = "Bitte Start und Ziel setzen.";
-        $("dist").textContent = "—";
-        $("time").textContent = "—";
-        if(routeLine){ map.removeLayer(routeLine); routeLine=null; }
+    // =========================
+    // Stop Details (Text + Bilder)
+    // =========================
+    function renderStopDetails(){
+      const s = currentStop();
+      const t = currentTrip();
+      if(!s || !t){
+        stopDetailsEl.innerHTML = `<div style="color: rgba(0,0,0,0.55); font-size: 13px;">Wähle einen Stop aus.</div>`;
         return;
       }
 
-      const pts = [];
-      const s = startMarker.getLatLng();
-      const g = goalMarker.getLatLng();
-      pts.push([s.lng, s.lat]);
-      stopMarkers.forEach(m => { const p=m.getLatLng(); pts.push([p.lng,p.lat]); });
-      pts.push([g.lng, g.lat]);
+      const catOptions = (t.categories||[]).map(c => {
+        const sel = c.id === s.categoryId ? "selected" : "";
+        return `<option value="${c.id}" ${sel}>${escapeHtml(c.name)}</option>`;
+      }).join("");
 
-      $("routeStatus").textContent = "Route wird berechnet…";
+      const imgs = (s.images||[]).map(src =>
+        `<img src="${src}" alt="Bild" style="width:100%;height:80px;object-fit:cover;border-radius:12px;border:1px solid rgba(0,0,0,0.08);">`
+      ).join("");
 
-      const coordStr = pts.map(p => p.join(",")).join(";");
-      const url = `https://router.project-osrm.org/route/v1/driving/${coordStr}?overview=full&geometries=geojson&steps=false`;
+      stopDetailsEl.innerHTML = `
+        <label style="margin-top:0;">Name</label>
+        <input class="field" id="sdName" value="${escapeHtml(s.name||"")}" />
 
-      try{
-        const res = await fetch(url);
-        const data = await res.json();
-        const r = data?.routes?.[0];
-        if(!r) throw new Error("no route");
+        <label>Rubrik</label>
+        <select class="field" id="sdCat">${catOptions}</select>
 
-        lastRoute = { distance:r.distance, duration:r.duration, geometry:r.geometry };
+        <label>Text / Notiz</label>
+        <textarea class="field" id="sdNote" rows="4" style="resize:vertical;">${escapeHtml(s.note||"")}</textarea>
 
-        $("routeStatus").textContent = "OK";
-        $("dist").textContent = fmtKm(r.distance);
-        $("time").textContent = fmtTime(r.duration);
+        <div class="row" style="margin-top:10px;">
+          <button class="btn primary" id="sdSave">Speichern</button>
+          <button class="btn danger" id="sdDelete">Stop löschen</button>
+        </div>
 
-        if(routeLine) map.removeLayer(routeLine);
-        routeLine = L.geoJSON(r.geometry, { style:{ weight:5, opacity:0.9 } }).addTo(map);
-        map.fitBounds(routeLine.getBounds().pad(0.15));
-      }catch(e){
-        lastRoute = null;
-        $("routeStatus").textContent = "Fehler beim Routing.";
-        $("dist").textContent = "—";
-        $("time").textContent = "—";
-        if(routeLine){ map.removeLayer(routeLine); routeLine=null; }
-      }
-    }
+        <div class="divider"></div>
 
-    function makeMarker(latlng, label){
-      const m = L.marker(latlng, { draggable:true }).addTo(map);
-      m.bindPopup(label);
-      m.on("dragend", () => buildRoute());
-      return m;
-    }
+        <label>Bilder (lokal)</label>
+        <input class="field" id="sdImg" type="file" accept="image/*" />
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px;">${imgs}</div>
+      `;
 
-    async function setStartAt(latlng){
-      if(startMarker) map.removeLayer(startMarker);
-      startMarker = makeMarker(latlng, "Start");
-      startMarker.openPopup();
-      const addr = await reverseGeocode(latlng.lat, latlng.lng);
-      if(addr) $("fromInput").value = addr;
-      await buildRoute();
-    }
+      document.getElementById("sdSave").onclick = () => {
+        s.name = document.getElementById("sdName").value.trim() || "Stop";
+        s.categoryId = document.getElementById("sdCat").value;
+        s.note = document.getElementById("sdNote").value || "";
+        saveState(app.data);
+        renderAll();
+        drawSelectedRoute();
+        focusStop(s.id);
+      };
 
-    async function setGoalAt(latlng){
-      if(goalMarker) map.removeLayer(goalMarker);
-      goalMarker = makeMarker(latlng, "Ziel");
-      goalMarker.openPopup();
-      const addr = await reverseGeocode(latlng.lat, latlng.lng);
-      if(addr) $("toInput").value = addr;
-      await buildRoute();
-    }
+      document.getElementById("sdDelete").onclick = () => {
+        if(confirm("Stop wirklich löschen?")) deleteStop(s.id);
+      };
 
-    function addStopAt(latlng){
-      const sm = makeMarker(latlng, "Stopp");
-      sm.openPopup();
-      stopMarkers.push(sm);
-      buildRoute();
-    }
-
-    function clearStops(){
-      stopMarkers.forEach(m => map.removeLayer(m));
-      stopMarkers = [];
-      buildRoute();
-    }
-
-    function clearAll(){
-      if(startMarker){ map.removeLayer(startMarker); startMarker=null; }
-      if(goalMarker){ map.removeLayer(goalMarker); goalMarker=null; }
-      clearStops();
-      if(routeLine){ map.removeLayer(routeLine); routeLine=null; }
-      lastRoute = null;
-      $("fromInput").value="";
-      $("toInput").value="";
-      $("routeStatus").textContent="—";
-      $("dist").textContent="—";
-      $("time").textContent="—";
-    }
-
-    map.on("click", (e) => {
-      if(mode==="start") setStartAt(e.latlng);
-      else if(mode==="ziel") setGoalAt(e.latlng);
-      else addStopAt(e.latlng);
-    });
-
-    $("btnSetStart").onclick = () => setMode("start");
-    $("btnSetStop").onclick  = () => setMode("stop");
-    $("btnSetGoal").onclick  = () => setMode("ziel");
-    $("btnClearStops").onclick = () => clearStops();
-    $("btnClearAll").onclick = () => clearAll();
-    $("btnCalcRoute").onclick = () => buildRoute();
-
-    $("fromInput").addEventListener("keydown", async (ev) => {
-      if(ev.key !== "Enter") return;
-      ev.preventDefault();
-      const q = $("fromInput").value.trim();
-      if(!q) return;
-      const p = await geocode(q);
-      if(!p) return alert("Start-Adresse nicht gefunden.");
-      await setStartAt({ lat:p.lat, lng:p.lon });
-      map.setView([p.lat, p.lon], 12);
-    });
-
-    $("toInput").addEventListener("keydown", async (ev) => {
-      if(ev.key !== "Enter") return;
-      ev.preventDefault();
-      const q = $("toInput").value.trim();
-      if(!q) return;
-      const p = await geocode(q);
-      if(!p) return alert("Ziel-Adresse nicht gefunden.");
-      await setGoalAt({ lat:p.lat, lng:p.lon });
-      map.setView([p.lat, p.lon], 12);
-    });
-
-    // Save/load
-    const LS_KEY = "urlaubsplaner_trips_v1";
-    function getTrips(){ return safeJsonParse(localStorage.getItem(LS_KEY), []); }
-    function setTrips(v){ localStorage.setItem(LS_KEY, JSON.stringify(v)); }
-
-    function makeTripTitle(){
-      const a = ($("fromInput").value || "Start").split(",")[0].trim();
-      const b = ($("toInput").value || "Ziel").split(",")[0].trim();
-      const d1 = $("dateFrom").value || "—";
-      const d2 = $("dateTo").value || "—";
-      return `${a} → ${b} (${d1} bis ${d2})`;
-    }
-
-    function serializeTrip(){
-      const s = startMarker ? startMarker.getLatLng() : null;
-      const g = goalMarker ? goalMarker.getLatLng() : null;
-      return {
-        id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
-        createdAt: Date.now(),
-        title: makeTripTitle(),
-        dateFrom: $("dateFrom").value || "",
-        dateTo: $("dateTo").value || "",
-        fromText: $("fromInput").value || "",
-        toText: $("toInput").value || "",
-        start: s ? { lat:s.lat, lng:s.lng } : null,
-        goal: g ? { lat:g.lat, lng:g.lng } : null,
-        stops: stopMarkers.map(m => { const p=m.getLatLng(); return {lat:p.lat, lng:p.lng}; }),
-        route: lastRoute ? { distance:lastRoute.distance, duration:lastRoute.duration, geometry:lastRoute.geometry } : null
+      document.getElementById("sdImg").onchange = async (ev) => {
+        const file = ev.target.files?.[0];
+        if(!file) return;
+        const base64 = await fileToBase64(file);
+        if(!Array.isArray(s.images)) s.images = [];
+        s.images.unshift(base64);
+        saveState(app.data);
+        renderStopDetails();
       };
     }
 
-    async function loadTrip(t){
-      clearAll();
-      $("fromInput").value = t.fromText || "";
-      $("toInput").value = t.toText || "";
-      $("dateFrom").value = t.dateFrom || "";
-      $("dateTo").value = t.dateTo || "";
-
-      if(t.start) await setStartAt({ lat:t.start.lat, lng:t.start.lng });
-      if(t.stops?.length) t.stops.forEach(st => addStopAt({ lat:st.lat, lng:st.lng }));
-      if(t.goal) await setGoalAt({ lat:t.goal.lat, lng:t.goal.lng });
-
-      if(t.route?.geometry){
-        if(routeLine) map.removeLayer(routeLine);
-        routeLine = L.geoJSON(t.route.geometry, { style:{ weight:5, opacity:0.9 } }).addTo(map);
-        $("routeStatus").textContent = "OK (geladen)";
-        $("dist").textContent = fmtKm(t.route.distance);
-        $("time").textContent = fmtTime(t.route.duration);
-        map.fitBounds(routeLine.getBounds().pad(0.15));
-      }
-
-      await buildRoute();
+    function fileToBase64(file){
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
     }
 
-    function renderSaved(){
-      const wrap = $("savedList");
-      const trips = getTrips().sort((a,b)=>b.createdAt-a.createdAt);
-      wrap.innerHTML = "";
-      if(!trips.length){
-        wrap.innerHTML = `<div class="muted" style="padding:10px;">Noch keine Reisen gespeichert.</div>`;
+    // =========================
+    // Categories
+    // =========================
+    function addCategory(){
+      const t = currentTrip();
+      if(!t){ alert("Bitte zuerst eine Reise laden."); return; }
+      const nm = (newCatNameEl.value || "").trim();
+      if(!nm){ alert("Bitte Rubrik-Name eingeben."); return; }
+      t.categories.push({ id: uid(), name: nm });
+      newCatNameEl.value = "";
+      saveState(app.data);
+      renderAll();
+    }
+    window.addCategory = addCategory;
+
+    function deleteCategory(catId){
+      const t = currentTrip();
+      if(!t) return;
+      const used = (t.days||[]).some(d => (d.routes||[]).some(r => (r.stops||[]).some(s => s.categoryId === catId)));
+      if(used){ alert("Diese Rubrik wird noch verwendet. Erst Stops ändern, dann löschen."); return; }
+      t.categories = t.categories.filter(c => c.id !== catId);
+      saveState(app.data);
+      renderAll();
+    }
+
+    // =========================
+    // Profile
+    // =========================
+    function humanTravelType(v){
+      if(v === "alleine") return "Reiseart: Alleine";
+      if(v === "freunde") return "Reiseart: Mit Freunden";
+      if(v === "familie") return "Reiseart: Mit Familie";
+      return "Reiseart: —";
+    }
+
+    function renderProfile(){
+      const p = app.data.profile;
+      if(p?.avatar) profileAvatarEl.src = p.avatar;
+      else profileAvatarEl.removeAttribute("src");
+
+      profileNameEl.value = p?.name || "";
+      travelTypeEl.value = p?.travelType || "alleine";
+      profileBioEl.value = p?.bio || "";
+
+      profileTitleEl.textContent = p?.name ? p.name : "Kein Profil";
+      profileSubEl.textContent = p?.travelType ? humanTravelType(p.travelType) : "Erstelle dein Profil für später.";
+    }
+
+    async function saveProfile(){
+      const name = (profileNameEl.value || "").trim();
+      const travelType = travelTypeEl.value;
+      const bio = profileBioEl.value || "";
+
+      let avatar = app.data.profile?.avatar || null;
+      const file = profileImgEl.files?.[0];
+      if(file) avatar = await fileToBase64(file);
+
+      app.data.profile = { name, travelType, bio, avatar, updatedAt: Date.now() };
+      saveState(app.data);
+      profileImgEl.value = "";
+      renderProfile();
+      alert("Profil gespeichert.");
+    }
+    window.saveProfile = saveProfile;
+
+    function deleteProfile(){
+      if(!confirm("Profil wirklich löschen?")) return;
+      app.data.profile = null;
+      saveState(app.data);
+      renderProfile();
+    }
+    window.deleteProfile = deleteProfile;
+
+    // =========================
+    // Render
+    // =========================
+    function renderTrips(){
+      tripListEl.innerHTML = "";
+      if(!app.data.trips.length){
+        tripListEl.innerHTML = `<div style="padding:8px; color:rgba(0,0,0,0.55); font-size:13px;">Noch keine Reisen gespeichert.</div>`;
         return;
       }
-      trips.forEach(t => {
-        const div = document.createElement("div");
-        div.className = "card";
-        const dist = t.route?.distance ? fmtKm(t.route.distance) : "—";
-        const time = t.route?.duration ? fmtTime(t.route.duration) : "—";
-        div.innerHTML = `
-          <div class="h">
-            <span>${escapeHtml(t.title || "Reise")}</span>
-            <span class="muted">${new Date(t.createdAt).toLocaleString()}</span>
+      for(const t of app.data.trips){
+        const el = document.createElement("div");
+        el.className = "item";
+        el.innerHTML = `
+          <div class="itemLeft">
+            <div class="itemTitle">${escapeHtml(t.name || "")}</div>
+            <div class="itemSub">${escapeHtml(t.dateFrom || "—")} – ${escapeHtml(t.dateTo || "—")}</div>
           </div>
-          <div class="p">
-            Distanz: <b>${dist}</b> · Zeit: <b>${time}</b><br>
-            Start: ${escapeHtml((t.fromText||"").slice(0,80))}<br>
-            Ziel: ${escapeHtml((t.toText||"").slice(0,80))}
-          </div>
-          <div class="actions">
-            <button class="btn secondary small" data-load="${t.id}">Laden</button>
-            <button class="btn danger small" data-del="${t.id}">Löschen</button>
+          <div class="itemBtns">
+            <button class="pillBtn pillLoad">Laden</button>
+            <button class="pillBtn pillDel">Löschen</button>
           </div>
         `;
-        wrap.appendChild(div);
-      });
-
-      wrap.querySelectorAll("[data-load]").forEach(btn => {
-        btn.onclick = async () => {
-          const id = btn.getAttribute("data-load");
-          const trip = getTrips().find(x => x.id === id);
-          if(!trip) return;
-          switchTab("plan");
-          await loadTrip(trip);
-        };
-      });
-      wrap.querySelectorAll("[data-del]").forEach(btn => {
-        btn.onclick = () => {
-          const id = btn.getAttribute("data-del");
-          setTrips(getTrips().filter(x => x.id !== id));
-          renderSaved();
-        };
-      });
+        el.querySelector(".pillLoad").onclick = () => loadTrip(t.id);
+        el.querySelector(".pillDel").onclick = () => { if(confirm("Reise wirklich löschen?")) deleteTrip(t.id); };
+        tripListEl.appendChild(el);
+      }
     }
 
-    $("btnSaveTrip").onclick = () => {
-      if(!startMarker || !goalMarker) return alert("Bitte erst Start und Ziel setzen.");
-      const trips = getTrips();
-      trips.push(serializeTrip());
-      setTrips(trips);
-      renderSaved();
-      alert("Reise gespeichert ✅");
-    };
+    function renderDays(){
+      const t = currentTrip();
+      currentTripLabel.textContent = t ? t.name : "Keine Reise geladen";
+      currentTripRange.textContent = t ? `${t.dateFrom || "—"} – ${t.dateTo || "—"}` : "—";
 
-    $("btnClearStorage").onclick = () => {
-      if(!confirm("Wirklich ALLE gespeicherten Reisen löschen?")) return;
-      setTrips([]);
-      renderSaved();
-    };
-
-    function switchTab(name){
-      document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.dataset.tab === name));
-      $("tab-plan").classList.toggle("hide", name !== "plan");
-      $("tab-saved").classList.toggle("hide", name !== "saved");
-      if(name==="saved") renderSaved();
+      dayListEl.innerHTML = "";
+      if(!t || !t.days || t.days.length === 0){
+        dayListEl.innerHTML = `<div style="padding:8px; color:rgba(0,0,0,0.55); font-size:13px;">Keine Tage vorhanden. Gehe zu „Reise“ → „Tage erzeugen“.</div>`;
+        return;
+      }
+      for(const d of t.days){
+        const el = document.createElement("div");
+        el.className = "item";
+        const active = (d.id === app.currentDayId);
+        el.style.borderColor = active ? "rgba(10,132,255,0.35)" : "rgba(0,0,0,0.07)";
+        el.style.background = active ? "rgba(10,132,255,0.08)" : "rgba(255,255,255,0.9)";
+        el.innerHTML = `
+          <div class="itemLeft">
+            <div class="itemTitle">Tag ${d.dayIndex}: ${escapeHtml(d.date)}</div>
+            <div class="itemSub">${(d.routes||[]).length} Route(n)</div>
+          </div>
+          <div class="itemBtns">
+            <button class="pillBtn pillLoad">Wählen</button>
+          </div>
+        `;
+        el.querySelector(".pillLoad").onclick = () => selectDay(d.id);
+        dayListEl.appendChild(el);
+      }
     }
-    document.querySelectorAll(".tab").forEach(t => t.onclick = () => switchTab(t.dataset.tab));
 
-    // boot
-    setMode("start");
-    renderSaved();
+    function renderPlan(){
+      const t = currentTrip();
+      const d = currentDay();
+      if(!t || !d){
+        planHeader.textContent = "Kein Tag gewählt";
+        planSub.textContent = "—";
+        routeListEl.innerHTML = "";
+        stopListEl.innerHTML = "";
+        stopDetailsEl.innerHTML = `<div style="color: rgba(0,0,0,0.55); font-size: 13px;">Wähle einen Stop aus.</div>`;
+        setRouteMeta("—","—","—");
+        return;
+      }
 
-    // ✅ Service Worker NUR 1x registrieren
+      planHeader.textContent = `${t.name} – Tag ${d.dayIndex}`;
+      planSub.textContent = d.date;
+
+      routeListEl.innerHTML = "";
+      if(!d.routes || d.routes.length === 0){
+        routeListEl.innerHTML = `<div style="padding:8px; color:rgba(0,0,0,0.55); font-size:13px;">Noch keine Route. Oben „+ Route“.</div>`;
+      } else {
+        for(const r of d.routes){
+          const active = (r.id === app.currentRouteId);
+          const el = document.createElement("div");
+          el.className = "item";
+          el.style.borderColor = active ? "rgba(10,132,255,0.35)" : "rgba(0,0,0,0.07)";
+          el.style.background = active ? "rgba(10,132,255,0.08)" : "rgba(255,255,255,0.9)";
+          el.innerHTML = `
+            <div class="itemLeft">
+              <div class="itemTitle">${escapeHtml(r.name || "Route")}</div>
+              <div class="itemSub">${(r.stops||[]).length} Stop(s)</div>
+            </div>
+            <div class="itemBtns">
+              <button class="pillBtn pillLoad">Öffnen</button>
+              <button class="pillBtn pillDel">X</button>
+            </div>
+          `;
+          el.querySelector(".pillLoad").onclick = () => selectRoute(r.id);
+          el.querySelector(".pillDel").onclick = () => { if(confirm("Route löschen?")) deleteRoute(r.id); };
+          routeListEl.appendChild(el);
+        }
+      }
+
+      const r = currentRoute();
+      stopListEl.innerHTML = "";
+      if(!r){
+        stopListEl.innerHTML = `<div style="padding:8px; color:rgba(0,0,0,0.55); font-size:13px;">Bitte Route auswählen.</div>`;
+        setRouteMeta("—","—","—");
+        stopDetailsEl.innerHTML = `<div style="color: rgba(0,0,0,0.55); font-size: 13px;">Wähle einen Stop aus.</div>`;
+        return;
+      }
+
+      if(!r.stops || r.stops.length === 0){
+        stopListEl.innerHTML = `<div style="padding:8px; color:rgba(0,0,0,0.55); font-size:13px;">Noch keine Stops. Nutze „Stop per Karte“ oder Adresse.</div>`;
+        setRouteMeta(r.name, "—", "—");
+      } else {
+        for(const s of r.stops){
+          const active = (s.id === app.currentStopId);
+          const el = document.createElement("div");
+          el.className = "item";
+          el.style.borderColor = active ? "rgba(10,132,255,0.35)" : "rgba(0,0,0,0.07)";
+          el.style.background = active ? "rgba(10,132,255,0.08)" : "rgba(255,255,255,0.9)";
+          el.innerHTML = `
+            <div class="itemLeft" style="min-width:0;">
+              <div class="itemTitle">${escapeHtml(s.name || "Stop")}</div>
+              <div class="itemSub">${escapeHtml(catName(s.categoryId))}${(s.note||"").trim() ? " • Notiz" : ""}${(s.images||[]).length ? " • Bilder" : ""}</div>
+            </div>
+            <div class="itemBtns">
+              <button class="pillBtn pillLoad">Edit</button>
+              <button class="pillBtn pillDel">X</button>
+            </div>
+          `;
+          el.querySelector(".pillLoad").onclick = () => selectStop(s.id);
+          el.querySelector(".pillDel").onclick = () => { if(confirm("Stop löschen?")) deleteStop(s.id); };
+          stopListEl.appendChild(el);
+        }
+      }
+
+      renderStopDetails();
+    }
+
+    function renderCats(){
+      const t = currentTrip();
+      catListEl.innerHTML = "";
+      if(!t){
+        catListEl.innerHTML = `<div style="padding:8px; color:rgba(0,0,0,0.55); font-size:13px;">Bitte zuerst eine Reise laden.</div>`;
+        return;
+      }
+      for(const c of t.categories || []){
+        const el = document.createElement("div");
+        el.className = "item";
+        el.innerHTML = `
+          <div class="itemLeft">
+            <div class="itemTitle">${escapeHtml(c.name)}</div>
+            <div class="itemSub">Rubrik</div>
+          </div>
+          <div class="itemBtns">
+            <button class="pillBtn pillDel">Löschen</button>
+          </div>
+        `;
+        el.querySelector(".pillDel").onclick = () => deleteCategory(c.id);
+        catListEl.appendChild(el);
+      }
+    }
+
+    function renderAll(){
+      renderTrips();
+      renderDays();
+      renderPlan();
+      renderCats();
+      renderProfile();
+    }
+
+    // =========================
+    // Init
+    // =========================
+    renderAll();
+
+    // =========================
+    // PWA Service Worker (NUR 1x)
+    // =========================
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", () => {
         navigator.serviceWorker.register("./sw.js").catch(() => {});
